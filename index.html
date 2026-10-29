@@ -764,106 +764,264 @@
 
 
         <!-- ============================================== -->
-        <!-- SCREEN 9: DOCUMENT SCAN VIEW                  -->
+        <!-- SCREEN 9: DOCUMENT SCAN VIEW (VISION AI)       -->
         <!-- ============================================== -->
-        <section id="screen-document-scan" class="screen-view absolute inset-0 flex flex-col pt-[120px] pb-[100px] px-8 md:px-margin-edge bg-surface overflow-y-auto hidden">
-            <div class="max-w-6xl mx-auto w-full flex-1 flex flex-col justify-between py-6">
+        <section id="screen-document-scan" class="screen-view absolute inset-0 flex flex-col pt-[120px] pb-[100px] px-4 md:px-margin-edge bg-surface overflow-y-auto hidden">
+            <div class="max-w-7xl mx-auto w-full flex-1 flex flex-col justify-between py-4">
                 <!-- Header -->
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
                     <div>
-                        <h2 class="text-3xl md:text-5xl font-bold text-on-surface mb-2">Scan Medical Documents</h2>
-                        <p class="text-xl text-on-surface-variant">Place previous prescriptions, lab reports, or ABHA card on the scanner glass</p>
+                        <div class="flex items-center gap-3">
+                            <span class="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Vision AI Optical Engine</span>
+                            <span id="scanStatusBadge" class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Ready
+                            </span>
+                        </div>
+                        <h2 class="text-3xl md:text-4xl font-bold text-on-surface mt-1">Scan Medical Documents</h2>
+                        <p class="text-sm md:text-base text-on-surface-variant">Hold prescriptions, lab reports, or discharge notes under the camera or upload a file</p>
                     </div>
-                    <div class="flex items-center gap-3 bg-primary-fixed/50 text-primary px-5 py-2.5 rounded-full border border-primary">
-                        <span class="material-symbols-outlined text-[28px] icon-fill">document_scanner</span>
-                        <span class="font-bold text-sm">Optical OCR Engine Ready</span>
+
+                    <!-- Vision AI Controls / API Config -->
+                    <div class="flex items-center gap-3">
+                        <button onclick="toggleVisionApiKeyModal()" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-highest hover:bg-surface-variant text-on-surface text-sm font-semibold border border-outline-variant transition-colors" title="Configure Gemini API Key">
+                            <span class="material-symbols-outlined text-[20px] text-primary">key</span>
+                            <span id="apiKeyBtnLabel">API Key</span>
+                        </button>
                     </div>
                 </div>
 
-                <!-- Scanning Glass Viewport -->
-                <div class="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch mb-6">
-                    <!-- Scanner Preview with Laser -->
-                    <div class="md:col-span-7 bg-surface-container-highest border-4 border-dashed border-outline rounded-3xl p-6 relative overflow-hidden flex flex-col items-center justify-center min-h-[380px] shadow-inner">
-                        <!-- Laser Scan Line -->
-                        <div class="laser-scan"></div>
+                <!-- Main Scanner & Results Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch mb-6">
+                    <!-- Left: Camera Viewport, Upload & Controls -->
+                    <div class="lg:col-span-7 flex flex-col gap-4">
+                        <!-- Source Switcher Tabs -->
+                        <div class="flex gap-2 p-1.5 bg-surface-container rounded-2xl border border-outline-variant/60">
+                            <button id="tabCamera" onclick="switchScanMode('camera')" class="flex-1 py-2.5 px-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 bg-white text-primary shadow-sm transition-all">
+                                <span class="material-symbols-outlined text-[20px]">videocam</span>
+                                Live Camera
+                            </button>
+                            <button id="tabUpload" onclick="switchScanMode('upload')" class="flex-1 py-2.5 px-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-on-surface-variant hover:text-on-surface transition-all">
+                                <span class="material-symbols-outlined text-[20px]">upload_file</span>
+                                Upload Image
+                            </button>
+                            <button id="tabSamples" onclick="switchScanMode('samples')" class="flex-1 py-2.5 px-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-on-surface-variant hover:text-on-surface transition-all">
+                                <span class="material-symbols-outlined text-[20px]">description</span>
+                                Demo Prescriptions
+                            </button>
+                        </div>
 
-                        <!-- Mock Document Paper inside -->
-                        <div class="w-full max-w-md bg-white border-2 border-outline-variant rounded-xl p-6 shadow-xl relative z-10 text-on-surface">
-                            <div class="flex justify-between items-center border-b pb-3 mb-3">
-                                <div>
-                                    <h4 class="font-bold text-primary text-lg">Apollo Clinic Report</h4>
-                                    <span class="text-xs text-outline">Date: 25-Oct-2026 • Dr. R. Sen</span>
+                        <!-- Scanner Viewport Frame -->
+                        <div id="scanViewportContainer" class="bg-surface-container-highest border-3 border-dashed border-outline-variant rounded-3xl relative overflow-hidden flex flex-col items-center justify-center min-h-[380px] h-[400px] shadow-inner">
+                            <!-- Laser Scanning Line Effect -->
+                            <div id="scanLaserEffect" class="laser-scan hidden"></div>
+
+                            <!-- Live Camera Video Element -->
+                            <video id="scanVideo" autoplay playsinline muted class="w-full h-full object-cover rounded-2xl"></video>
+
+                            <!-- Captured / Uploaded Image Preview -->
+                            <img id="scanImagePreview" class="w-full h-full object-contain rounded-2xl hidden z-10 bg-black/5" alt="Document Preview">
+
+                            <!-- Hidden Working Canvas for Frame Grabbing -->
+                            <canvas id="scanCanvas" class="hidden"></canvas>
+
+                            <!-- Upload Drop Zone (when in Upload mode) -->
+                            <div id="scanUploadZone" class="hidden absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-20 bg-surface-container-low/95 cursor-pointer border-2 border-dashed border-primary/50 m-4 rounded-2xl" onclick="document.getElementById('scanFileInput').click()">
+                                <div class="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-3">
+                                    <span class="material-symbols-outlined text-[36px]">cloud_upload</span>
                                 </div>
-                                <span class="material-symbols-outlined text-secondary text-[36px]">receipt</span>
+                                <h4 class="font-bold text-lg text-on-surface mb-1">Upload Prescription or Report</h4>
+                                <p class="text-xs text-on-surface-variant mb-4">Click to browse or drag & drop JPG, PNG, or WebP</p>
+                                <span class="px-5 py-2 rounded-xl bg-primary text-white text-xs font-bold shadow-md hover:bg-primary-container">Select File</span>
+                                <input type="file" id="scanFileInput" accept="image/*" class="hidden" onchange="handleScanFileInput(event)">
                             </div>
-                            <div class="text-xs space-y-2 text-on-surface-variant">
-                                <p><strong>Patient:</strong> Aarav Sharma (32 / M)</p>
-                                <p><strong>Diagnosis:</strong> Acute Upper Respiratory Tract Infection (URTI)</p>
-                                <p><strong>Prescription:</strong> Paracetamol 650mg, Cetirizine 10mg</p>
-                                <p><strong>Follow-up:</strong> Review after 4 days if temperature persists</p>
+
+                            <!-- Sample Prescriptions Quick-Picker Grid (when in Samples mode) -->
+                            <div id="scanSamplesZone" class="hidden absolute inset-0 flex flex-col p-5 z-20 bg-surface-container-lowest/95 overflow-y-auto">
+                                <h4 class="text-sm font-bold text-outline uppercase tracking-wider mb-3">Select a Realistic Sample Prescription:</h4>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
+                                    <button onclick="loadSamplePrescription('pediatric_fever')" class="p-4 rounded-2xl border-2 border-outline-variant hover:border-primary text-left bg-surface-container hover:bg-primary-fixed/30 transition-all flex flex-col justify-between">
+                                        <div>
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Pediatric OPD</span>
+                                            <h5 class="font-bold text-sm text-on-surface mt-2">Dr. R. Sen, Apollo</h5>
+                                            <p class="text-xs text-on-surface-variant mt-1">High fever, cough, Paracetamol & Cetirizine</p>
+                                        </div>
+                                        <span class="text-xs font-bold text-primary mt-3 flex items-center gap-1">Load & Analyze <span class="material-symbols-outlined text-[16px]">arrow_forward</span></span>
+                                    </button>
+
+                                    <button onclick="loadSamplePrescription('cardiology_htn')" class="p-4 rounded-2xl border-2 border-outline-variant hover:border-primary text-left bg-surface-container hover:bg-primary-fixed/30 transition-all flex flex-col justify-between">
+                                        <div>
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">Cardiology OPD</span>
+                                            <h5 class="font-bold text-sm text-on-surface mt-2">Dr. V. Rao, Fortis</h5>
+                                            <p class="text-xs text-on-surface-variant mt-1">Hypertension, chest heaviness, Telmisartan 40</p>
+                                        </div>
+                                        <span class="text-xs font-bold text-primary mt-3 flex items-center gap-1">Load & Analyze <span class="material-symbols-outlined text-[16px]">arrow_forward</span></span>
+                                    </button>
+
+                                    <button onclick="loadSamplePrescription('ortho_joint_pain')" class="p-4 rounded-2xl border-2 border-outline-variant hover:border-primary text-left bg-surface-container hover:bg-primary-fixed/30 transition-all flex flex-col justify-between">
+                                        <div>
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-100 text-cyan-800">Orthopedic OPD</span>
+                                            <h5 class="font-bold text-sm text-on-surface mt-2">Dr. S. Mehta, Max</h5>
+                                            <p class="text-xs text-on-surface-variant mt-1">Knee osteoarthritis, pain, Aceclofenac gel</p>
+                                        </div>
+                                        <span class="text-xs font-bold text-primary mt-3 flex items-center gap-1">Load & Analyze <span class="material-symbols-outlined text-[16px]">arrow_forward</span></span>
+                                    </button>
+                                </div>
                             </div>
-                            <div class="mt-4 pt-3 border-t flex justify-between items-center text-xs text-emerald-600 font-bold">
-                                <span>OCR Status: 100% Extracted</span>
-                                <span class="material-symbols-outlined text-[20px]">check_circle</span>
+
+                            <!-- Corner Alignment Guides -->
+                            <div class="pointer-events-none absolute top-4 left-4 w-10 h-10 border-t-4 border-l-4 border-primary rounded-tl-lg"></div>
+                            <div class="pointer-events-none absolute top-4 right-4 w-10 h-10 border-t-4 border-r-4 border-primary rounded-tr-lg"></div>
+                            <div class="pointer-events-none absolute bottom-4 left-4 w-10 h-10 border-b-4 border-l-4 border-primary rounded-bl-lg"></div>
+                            <div class="pointer-events-none absolute bottom-4 right-4 w-10 h-10 border-b-4 border-r-4 border-primary rounded-br-lg"></div>
+
+                            <!-- Processing Overlay -->
+                            <div id="scanProcessingOverlay" class="hidden absolute inset-0 bg-black/60 backdrop-blur-sm z-30 flex flex-col items-center justify-center text-white">
+                                <div class="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+                                <h4 class="text-lg font-bold">Vision AI Reading Document...</h4>
+                                <p class="text-xs text-white/80 mt-1">Extracting clinical diagnosis, medications & dosages</p>
                             </div>
                         </div>
 
-                        <!-- Corner Guides -->
-                        <div class="absolute top-4 left-4 w-8 h-8 border-t-4 border-l-4 border-primary"></div>
-                        <div class="absolute top-4 right-4 w-8 h-8 border-t-4 border-r-4 border-primary"></div>
-                        <div class="absolute bottom-4 left-4 w-8 h-8 border-b-4 border-l-4 border-primary"></div>
-                        <div class="absolute bottom-4 right-4 w-8 h-8 border-b-4 border-r-4 border-primary"></div>
+                        <!-- Viewport Bottom Action Bar -->
+                        <div class="flex items-center gap-3">
+                            <button id="btnCaptureSnapshot" onclick="captureDocumentSnapshot()" class="flex-1 py-4 bg-primary hover:bg-primary-container text-white font-bold rounded-2xl shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all">
+                                <span class="material-symbols-outlined text-[24px]">photo_camera</span>
+                                <span>Capture & Analyze</span>
+                            </button>
+                            <button id="btnRetakeSnapshot" onclick="resetDocumentScanner()" class="px-5 py-4 bg-surface-container hover:bg-surface-variant text-on-surface font-bold rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all">
+                                <span class="material-symbols-outlined text-[22px]">refresh</span>
+                                <span>Retake</span>
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- Right Side: Extracted Data Card -->
-                    <div class="md:col-span-5 bg-surface-container-lowest border-2 border-outline-variant rounded-3xl p-6 flex flex-col justify-between shadow-md">
+                    <!-- Right: Vision AI Extracted Clinical Findings Card -->
+                    <div class="lg:col-span-5 bg-surface-container-lowest border-2 border-outline-variant rounded-3xl p-6 flex flex-col justify-between shadow-md">
                         <div>
-                            <span class="text-xs font-bold uppercase tracking-wider text-secondary">AI Document Analysis</span>
-                            <h3 class="text-2xl font-bold text-on-surface mt-1 mb-4">Extracted Medical History</h3>
+                            <div class="flex justify-between items-center border-b border-outline-variant/60 pb-3 mb-4">
+                                <div>
+                                    <span class="text-[11px] font-bold uppercase tracking-wider text-secondary block">Vision AI Intelligence</span>
+                                    <h3 class="text-xl font-bold text-on-surface">Extracted Medical Data</h3>
+                                </div>
+                                <span id="ocrEngineTag" class="text-xs bg-primary/10 text-primary font-bold px-3 py-1 rounded-full flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[16px]">neurology</span> Gemini Vision
+                                </span>
+                            </div>
 
-                            <div class="space-y-4">
-                                <div class="bg-surface-container p-4 rounded-xl">
-                                    <span class="text-xs text-outline block">Document Type</span>
-                                    <span class="text-lg font-bold text-on-surface">Previous OPD Prescription</span>
+                            <div class="space-y-3" id="scanResultsContainer">
+                                <!-- Document Metadata -->
+                                <div class="bg-surface-container p-3.5 rounded-2xl flex justify-between items-center">
+                                    <div>
+                                        <span class="text-[10px] text-outline uppercase font-semibold block">Document Type</span>
+                                        <span id="resDocType" class="text-sm font-bold text-on-surface">Doctor Prescription Slip</span>
+                                    </div>
+                                    <span id="resDoctorClinic" class="text-xs font-semibold text-primary bg-primary-fixed/40 px-2.5 py-1 rounded-lg">Dr. R. Sen (Apollo)</span>
                                 </div>
-                                <div class="bg-surface-container p-4 rounded-xl">
-                                    <span class="text-xs text-outline block">Past Clinical Findings</span>
-                                    <span class="text-base font-semibold text-on-surface">Acute URTI, Seasonal Bronchial Allergy</span>
+
+                                <!-- Clinical Diagnosis & Symptoms -->
+                                <div class="bg-surface-container p-3.5 rounded-2xl">
+                                    <span class="text-[10px] text-outline uppercase font-semibold block mb-1">Identified Diagnosis & Symptoms</span>
+                                    <div id="resSymptomsList" class="flex flex-wrap gap-1.5">
+                                        <span class="bg-secondary-container text-on-secondary-container text-xs px-2.5 py-1 rounded-lg font-semibold">Acute URTI</span>
+                                        <span class="bg-secondary-container text-on-secondary-container text-xs px-2.5 py-1 rounded-lg font-semibold">High Fever (101°F)</span>
+                                        <span class="bg-secondary-container text-on-secondary-container text-xs px-2.5 py-1 rounded-lg font-semibold">Dry Cough</span>
+                                    </div>
                                 </div>
-                                <div class="bg-surface-container p-4 rounded-xl">
-                                    <span class="text-xs text-outline block">Attached to Today's Visit</span>
-                                    <span class="text-base font-semibold text-emerald-700 flex items-center gap-2">
-                                        <span class="material-symbols-outlined text-[20px]">task_alt</span>
-                                        Synced to EMR File #98124
-                                    </span>
+
+                                <!-- Extracted Medications Table -->
+                                <div class="bg-surface-container p-3.5 rounded-2xl">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="text-[10px] text-outline uppercase font-semibold block">Prescribed Medications</span>
+                                        <span id="resMedCount" class="text-[11px] text-primary font-bold">2 Medicines</span>
+                                    </div>
+                                    <div id="resMedicationsList" class="space-y-2 max-h-36 overflow-y-auto pr-1">
+                                        <div class="flex justify-between items-center p-2 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-xs">
+                                            <div>
+                                                <strong class="text-on-surface block">Tab. Paracetamol 650mg</strong>
+                                                <span class="text-outline">1 tab thrice daily (TDS) x 3 days</span>
+                                            </div>
+                                            <span class="text-emerald-700 font-bold text-[10px] bg-emerald-50 px-2 py-0.5 rounded">After meals</span>
+                                        </div>
+                                        <div class="flex justify-between items-center p-2 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-xs">
+                                            <div>
+                                                <strong class="text-on-surface block">Tab. Cetirizine 10mg</strong>
+                                                <span class="text-outline">1 tab bedtime (HS) x 5 days</span>
+                                            </div>
+                                            <span class="text-emerald-700 font-bold text-[10px] bg-emerald-50 px-2 py-0.5 rounded">Night</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Auto-Triage Department Recommendation -->
+                                <div class="bg-emerald-50 border border-emerald-200 p-3.5 rounded-2xl flex items-center justify-between">
+                                    <div>
+                                        <span class="text-[10px] text-emerald-800 uppercase font-bold block">Recommended OPD Route</span>
+                                        <span id="resDepartment" class="text-sm font-bold text-emerald-950">General Medicine OPD (Room 204)</span>
+                                    </div>
+                                    <span class="material-symbols-outlined text-emerald-700 text-[28px]">verified</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="flex gap-3 mt-6">
-                            <button onclick="rescanDocument()" class="flex-1 py-4 bg-surface-container hover:bg-surface-variant text-on-surface font-bold rounded-xl text-center">
-                                Re-scan Page
+                        <!-- Confirm Action -->
+                        <div class="pt-4 border-t border-outline-variant/60 flex flex-col gap-2">
+                            <button onclick="confirmDocumentScan()" class="w-full py-4 bg-secondary hover:bg-secondary-container text-white hover:text-on-secondary-container font-bold rounded-2xl text-center shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2">
+                                <span class="material-symbols-outlined text-[24px]">task_alt</span>
+                                <span>Attach to OPD Visit & Proceed</span>
                             </button>
-                            <button onclick="confirmDocumentScan()" class="flex-1 py-4 bg-secondary hover:bg-secondary-container text-white hover:text-on-secondary-container font-bold rounded-xl text-center shadow-md">
-                                Confirm & Attach
-                            </button>
+                            <span class="text-[11px] text-center text-outline">Clinical data syncs automatically with patient consultation slip</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Footer Nav -->
-                <div class="flex items-center justify-between gap-6 pt-4 border-t-2 border-outline-variant">
-                    <button onclick="navigateTo('home')" class="h-16 px-8 rounded-full bg-surface-container hover:bg-surface-variant text-on-surface text-lg font-bold flex items-center gap-3">
-                        <span class="material-symbols-outlined text-[28px]">arrow_back</span>
+                <div class="flex items-center justify-between gap-6 pt-3 border-t-2 border-outline-variant">
+                    <button onclick="navigateTo('home')" class="h-14 px-8 rounded-full bg-surface-container hover:bg-surface-variant text-on-surface text-base font-bold flex items-center gap-3">
+                        <span class="material-symbols-outlined text-[24px]">arrow_back</span>
                         <span>Back</span>
                     </button>
-                    <button onclick="navigateTo('summary')" class="h-16 px-12 rounded-full bg-primary hover:bg-primary-container text-white text-xl font-bold shadow-lg flex items-center gap-3">
-                        <span>Proceed to Final Review</span>
-                        <span class="material-symbols-outlined text-[32px]">arrow_forward</span>
+                    <button onclick="navigateTo('summary')" class="h-14 px-10 rounded-full bg-primary hover:bg-primary-container text-white text-lg font-bold shadow-lg flex items-center gap-3">
+                        <span>Skip to Review</span>
+                        <span class="material-symbols-outlined text-[28px]">arrow_forward</span>
                     </button>
                 </div>
             </div>
         </section>
+
+        <!-- Vision AI API Key Modal -->
+        <div id="visionApiKeyModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+            <div class="bg-surface-container-lowest max-w-md w-full rounded-3xl p-6 shadow-2xl border-2 border-outline-variant">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center gap-2">
+                        <div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                            <span class="material-symbols-outlined text-[22px]">key</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-on-surface">Gemini Vision API Key</h3>
+                    </div>
+                    <button onclick="toggleVisionApiKeyModal()" class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-variant flex items-center justify-center text-outline">
+                        <span class="material-symbols-outlined text-[20px]">close</span>
+                    </button>
+                </div>
+
+                <p class="text-xs text-on-surface-variant mb-4 leading-relaxed">
+                    Paste your Google Gemini API key to enable live AI vision extraction on any prescription or report. Key is stored locally in your browser.
+                </p>
+
+                <div class="mb-4">
+                    <label class="text-xs font-bold text-outline block mb-1">Google AI API Key</label>
+                    <input type="password" id="inputGeminiApiKey" placeholder="AIzaSy..." class="w-full px-4 py-3 rounded-xl border-2 border-outline-variant focus:border-primary focus:outline-none text-sm bg-surface">
+                </div>
+
+                <div class="flex gap-2">
+                    <button onclick="saveGeminiApiKey()" class="flex-1 py-3 bg-primary text-white font-bold rounded-xl text-sm shadow hover:bg-primary-container transition-colors">
+                        Save API Key
+                    </button>
+                    <button onclick="clearGeminiApiKey()" class="px-4 py-3 bg-surface-container text-error font-bold rounded-xl text-sm hover:bg-surface-variant transition-colors">
+                        Clear
+                    </button>
+                </div>
+            </div>
+        </div>
 
 
         <!-- ============================================== -->
@@ -919,6 +1077,30 @@
                         <div class="flex items-center gap-3 text-sm text-on-surface-variant">
                             <span class="material-symbols-outlined text-primary">verified</span>
                             <span>Healthcare Selection: <strong class="text-on-surface" id="summarySystemText">Allopathic (General Medicine)</strong></span>
+                        </div>
+                    </div>
+
+                    <!-- Scanned Prescription / Vision AI Findings (Dynamic) -->
+                    <div id="summaryAttachedDocCard" class="hidden bg-surface-container-lowest border-2 border-secondary/40 rounded-2xl p-6 shadow-sm">
+                        <div class="flex justify-between items-center mb-3">
+                            <div class="flex items-center gap-2">
+                                <span class="material-symbols-outlined text-secondary text-[22px]">document_scanner</span>
+                                <span class="text-xs font-bold uppercase text-secondary">Attached Prescription / Vision AI Record</span>
+                            </div>
+                            <span id="summaryDocStatusBadge" class="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full">OCR Attached</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div class="bg-surface-container p-3.5 rounded-xl">
+                                <span class="text-[10px] text-outline uppercase font-semibold block">Source & Doctor</span>
+                                <strong id="summaryDocDoctor" class="text-on-surface">Dr. R. Sen (Apollo Clinic)</strong>
+                                <span id="summaryDocType" class="text-xs text-on-surface-variant block mt-0.5">Previous OPD Prescription</span>
+                            </div>
+                            <div class="bg-surface-container p-3.5 rounded-xl">
+                                <span class="text-[10px] text-outline uppercase font-semibold block">Extracted Medications</span>
+                                <div id="summaryDocMeds" class="text-xs text-on-surface font-medium space-y-1 mt-1">
+                                    • Tab. Paracetamol 650mg (TDS)<br>• Tab. Cetirizine 10mg (HS)
+                                </div>
+                            </div>
                         </div>
                     </div>
 

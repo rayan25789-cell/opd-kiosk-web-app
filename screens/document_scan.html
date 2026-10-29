@@ -160,45 +160,144 @@
 </div>
 </header>
 <!-- Main Canvas Area -->
-<main class="mt-[120px] mb-[100px] flex-1 flex flex-row gap-section-gap px-margin-edge py-gutter box-border h-[calc(100vh-220px)]">
-<!-- Left: Camera Preview Viewfinder -->
-<section class="flex-1 bg-surface-container-lowest border-2 border-outline-variant rounded-2xl relative overflow-hidden flex items-center justify-center shadow-sm">
-<!-- Simulated Camera Feed Background (Subtle Grid) -->
-<div class="absolute inset-0 opacity-10 bg-[radial-gradient(theme('colors.on-surface')_1px,transparent_1px)] [background-size:20px_20px]"></div>
-<!-- Document Alignment Guides -->
-<div class="absolute inset-12 border-4 border-dashed border-outline opacity-40 rounded-xl pointer-events-none"></div>
-<!-- Scanning Line Effect -->
-<div class="absolute inset-x-12 inset-y-12 overflow-hidden pointer-events-none rounded-xl">
-<div class="scan-line"></div>
-</div>
-<!-- Status Indicator Overlay -->
-<div class="absolute top-8 bg-inverse-surface text-inverse-on-surface px-8 py-4 rounded-full flex items-center gap-4 shadow-lg z-10">
-<span class="material-symbols-outlined animate-slow-spin">sync</span>
-<span class="font-label-lg text-label-lg">Scanning...</span>
-</div>
-<!-- Optional: Ghost image of a generic document to help users understand orientation -->
-<span class="material-symbols-outlined text-[200px] text-surface-variant opacity-30">description</span>
-</section>
-<!-- Right: Instructions and Primary Action -->
-<section class="w-[500px] flex flex-col justify-between shrink-0">
-<!-- Instruction Text -->
-<div class="flex flex-col gap-stack-gap mt-8">
-<div class="w-20 h-20 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center">
-<span class="material-symbols-outlined text-[48px] icon-fill">document_scanner</span>
-</div>
-<h1 class="font-display-lg text-headline-lg text-on-surface">
-                    Place your prescription or report under the camera
-                </h1>
-<p class="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
-                    Ensure the document is laid flat within the dashed border. Lighting will adjust automatically.
-                </p>
-</div>
-<!-- Primary Action Button -->
-<button class="w-full min-h-[120px] bg-primary text-on-primary rounded-xl flex items-center justify-center gap-4 shadow-lg hover:brightness-110 active:scale-95 transition-all duration-150 mb-4">
-<span class="material-symbols-outlined text-[48px] icon-fill">photo_camera</span>
-<span class="font-button-text text-button-text tracking-wide">CAPTURE</span>
-</button>
-</section>
+<main class="mt-[120px] mb-[100px] flex-1 flex flex-row gap-8 px-8 py-6 box-border h-[calc(100vh-220px)] overflow-hidden">
+    <!-- Left: Camera Preview Viewfinder & Capture Options -->
+    <section class="flex-1 flex flex-col gap-4">
+        <!-- Mode Tabs -->
+        <div class="flex gap-2 p-1.5 bg-surface-container rounded-2xl border border-outline-variant">
+            <button id="tabCamera" onclick="switchScanMode('camera')" class="flex-1 py-2 px-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 bg-white text-primary shadow-sm">
+                <span class="material-symbols-outlined text-[20px]">videocam</span> Live Camera
+            </button>
+            <button id="tabUpload" onclick="switchScanMode('upload')" class="flex-1 py-2 px-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-on-surface-variant">
+                <span class="material-symbols-outlined text-[20px]">upload_file</span> Upload Prescription
+            </button>
+            <button id="tabSamples" onclick="switchScanMode('samples')" class="flex-1 py-2 px-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-on-surface-variant">
+                <span class="material-symbols-outlined text-[20px]">description</span> Demo Prescriptions
+            </button>
+        </div>
+
+        <!-- Viewport -->
+        <div id="scanViewport" class="flex-1 bg-surface-container-lowest border-2 border-outline-variant rounded-2xl relative overflow-hidden flex items-center justify-center shadow-sm">
+            <video id="scanVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
+            <img id="scanImagePreview" class="w-full h-full object-contain hidden" alt="Captured Document">
+            <canvas id="scanCanvas" class="hidden"></canvas>
+
+            <!-- Drop Zone for Upload -->
+            <div id="scanUploadZone" class="hidden absolute inset-0 bg-surface-container-low/95 flex flex-col items-center justify-center p-6 text-center cursor-pointer" onclick="document.getElementById('scanFileInput').click()">
+                <span class="material-symbols-outlined text-[48px] text-primary mb-2">cloud_upload</span>
+                <h3 class="font-bold text-lg text-on-surface">Upload Doctor Prescription</h3>
+                <p class="text-xs text-on-surface-variant mt-1 mb-4">Click to select JPG, PNG, or WebP</p>
+                <input type="file" id="scanFileInput" accept="image/*" class="hidden" onchange="handleScanFileInput(event)">
+            </div>
+
+            <!-- Samples Selector -->
+            <div id="scanSamplesZone" class="hidden absolute inset-0 bg-surface-container-lowest/95 flex flex-col p-4 overflow-y-auto">
+                <h4 class="text-xs font-bold text-outline uppercase tracking-wider mb-2">Select Clinical Sample:</h4>
+                <div class="grid grid-cols-1 gap-2">
+                    <button onclick="loadSamplePrescription('pediatric_fever')" class="p-3 rounded-xl border border-outline-variant hover:border-primary text-left bg-surface-container flex justify-between items-center">
+                        <div>
+                            <span class="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">Pediatric OPD</span>
+                            <h5 class="font-bold text-xs mt-1">Dr. R. Sen (Apollo) - Fever & Bronchitis</h5>
+                        </div>
+                        <span class="material-symbols-outlined text-primary">arrow_forward</span>
+                    </button>
+                    <button onclick="loadSamplePrescription('cardiology_htn')" class="p-3 rounded-xl border border-outline-variant hover:border-primary text-left bg-surface-container flex justify-between items-center">
+                        <div>
+                            <span class="text-[10px] font-bold bg-rose-100 text-rose-800 px-2 py-0.5 rounded">Cardiology OPD</span>
+                            <h5 class="font-bold text-xs mt-1">Dr. V. Rao (Fortis) - Hypertension & Angina</h5>
+                        </div>
+                        <span class="material-symbols-outlined text-primary">arrow_forward</span>
+                    </button>
+                    <button onclick="loadSamplePrescription('ortho_joint_pain')" class="p-3 rounded-xl border border-outline-variant hover:border-primary text-left bg-surface-container flex justify-between items-center">
+                        <div>
+                            <span class="text-[10px] font-bold bg-cyan-100 text-cyan-800 px-2 py-0.5 rounded">Orthopedic OPD</span>
+                            <h5 class="font-bold text-xs mt-1">Dr. S. Mehta (Max) - Knee Osteoarthritis</h5>
+                        </div>
+                        <span class="material-symbols-outlined text-primary">arrow_forward</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Alignment Guides -->
+            <div class="absolute inset-8 border-4 border-dashed border-outline opacity-40 rounded-xl pointer-events-none"></div>
+
+            <!-- Laser Scan Effect -->
+            <div id="scanLaserEffect" class="scan-line hidden"></div>
+        </div>
+
+        <!-- Action Controls -->
+        <div class="flex gap-3">
+            <button onclick="captureDocumentSnapshot()" class="flex-1 py-4 bg-primary text-on-primary rounded-xl flex items-center justify-center gap-3 shadow-lg active:scale-95 font-bold text-lg">
+                <span class="material-symbols-outlined text-[32px] icon-fill">photo_camera</span>
+                <span>CAPTURE & EXTRACT</span>
+            </button>
+            <button onclick="resetDocumentScanner()" class="px-6 py-4 bg-surface-container hover:bg-surface-variant text-on-surface rounded-xl flex items-center justify-center gap-2 font-bold text-sm">
+                <span class="material-symbols-outlined">refresh</span>
+                <span>Retake</span>
+            </button>
+        </div>
+    </section>
+
+    <!-- Right: Vision AI Extracted Clinical Findings Card -->
+    <section class="w-[460px] bg-surface-container-lowest border-2 border-outline-variant rounded-2xl p-6 flex flex-col justify-between shrink-0 shadow-sm overflow-y-auto">
+        <div>
+            <div class="flex items-center justify-between border-b border-outline-variant pb-3 mb-4">
+                <div>
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-secondary">Optical Vision Engine</span>
+                    <h2 class="text-xl font-bold text-on-surface">Extracted Medical Record</h2>
+                </div>
+                <span class="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Vision AI
+                </span>
+            </div>
+
+            <div class="space-y-3">
+                <div class="bg-surface-container p-3 rounded-xl">
+                    <span class="text-[10px] text-outline uppercase font-semibold block">Prescription Source</span>
+                    <strong id="resDoctorClinic" class="text-sm text-on-surface">Dr. R. Sen (Apollo Clinic)</strong>
+                    <span id="resDocType" class="text-xs text-on-surface-variant block">Pediatric Clinical Prescription</span>
+                </div>
+
+                <div class="bg-surface-container p-3 rounded-xl">
+                    <span class="text-[10px] text-outline uppercase font-semibold block mb-1">Diagnosis & Symptoms</span>
+                    <div id="resSymptomsList" class="flex flex-wrap gap-1">
+                        <span class="bg-secondary-container text-on-secondary-container text-xs px-2 py-0.5 rounded font-semibold">High Fever (102°F)</span>
+                        <span class="bg-secondary-container text-on-secondary-container text-xs px-2 py-0.5 rounded font-semibold">Productive Cough</span>
+                    </div>
+                </div>
+
+                <div class="bg-surface-container p-3 rounded-xl">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[10px] text-outline uppercase font-semibold block">Prescribed Medicines</span>
+                        <span id="resMedCount" class="text-[10px] text-primary font-bold">3 Items</span>
+                    </div>
+                    <div id="resMedicationsList" class="space-y-1.5 text-xs">
+                        <div class="p-1.5 bg-surface-container-lowest rounded border border-outline-variant/40">
+                            <strong>Syp. Paracetamol 250mg</strong>
+                            <div class="text-[11px] text-outline">5ml TDS • After meals</div>
+                        </div>
+                        <div class="p-1.5 bg-surface-container-lowest rounded border border-outline-variant/40">
+                            <strong>Syp. Amoxiclav 228mg</strong>
+                            <div class="text-[11px] text-outline">5ml BD • 5 days</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-xl">
+                    <span class="text-[10px] text-emerald-800 font-bold uppercase block">Recommended OPD Route</span>
+                    <strong id="resDepartment" class="text-xs text-emerald-950">Pediatric OPD (Room 102)</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-outline-variant flex flex-col gap-2">
+            <button onclick="window.location.href='../index.html'" class="w-full py-4 bg-secondary text-white font-bold rounded-xl text-center shadow-md hover:bg-secondary-container hover:text-on-secondary-container transition-colors flex items-center justify-center gap-2">
+                <span class="material-symbols-outlined">task_alt</span>
+                <span>Attach to OPD Visit & Proceed</span>
+            </button>
+            <span class="text-[10px] text-center text-outline">Syncs with patient triage summary</span>
+        </div>
+    </section>
 </main>
 <!-- Footer Shared Component -->
 <footer class="fixed bottom-0 w-full z-50 flex justify-between items-center px-margin-edge h-[100px] bg-secondary-container rounded-t-xl shadow-2xl border-t border-outline-variant/20">
