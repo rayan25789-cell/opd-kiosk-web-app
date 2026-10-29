@@ -732,19 +732,37 @@ async function analyzeDocumentWithVisionAI(base64Data) {
                 contents: [{
                     parts: [
                         {
-                            text: `You are an expert hospital OPD Kiosk Clinical Vision OCR. Analyze this medical document, prescription, lab test, or doctor note.
-Extract and return STRICT JSON with this exact structure:
+                            text: `You are an expert hospital OPD Kiosk Clinical Vision OCR. 
+Step 1: Inspect whether this image is an actual medical document (doctor prescription, OPD consultation slip, lab report, discharge note, or hospital bill).
+If it is NOT a medical document (e.g. textbook page, invoice, code, article, resume, casual document):
+Return STRICT JSON:
 {
-  "document_type": "Previous Prescription / Lab Report / Discharge Summary",
+  "is_valid_medical_doc": false,
+  "document_type": "Non-Medical Document",
+  "detected_topic": "Short summary of what this document actually is (e.g. Operating Systems Textbook - System Calls)",
+  "doctor_name": "None",
+  "clinic_or_hospital": "Non-Medical Document",
+  "patient_name": "None",
+  "diagnosis": "No medical diagnosis found",
+  "symptoms": [],
+  "medications": [],
+  "recommended_department": "Invalid for Clinical OPD Triage"
+}
+
+If it IS a medical document:
+Return STRICT JSON:
+{
+  "is_valid_medical_doc": true,
+  "document_type": "Doctor Prescription / Lab Report / Discharge Summary",
   "doctor_name": "Doctor name or unknown",
-  "clinic_or_hospital": "Hospital/Clinic name or City Health Center",
-  "patient_name": "Patient name or Aarav Sharma",
+  "clinic_or_hospital": "Hospital/Clinic name",
+  "patient_name": "Patient name or unknown",
   "diagnosis": "Primary diagnosis or clinical finding",
   "symptoms": ["Symptom 1", "Symptom 2"],
   "medications": [
     { "name": "Medicine name with strength", "dosage": "e.g. 1 tab TDS", "timing": "e.g. After meals x 5 days" }
   ],
-  "recommended_department": "e.g. General Medicine OPD (Room 204) / Pediatric OPD / Cardiology OPD"
+  "recommended_department": "e.g. General Medicine OPD (Room 204)"
 }
 Only output pure valid JSON without markdown fences.`
                         },
@@ -826,30 +844,28 @@ Only output pure valid JSON without markdown fences.`
         }
     }
 
-    // Method 3: Fallback Parser with Notification to configure API Key for live AI
+    // Method 3: Fallback when OCR has no active workers
     setTimeout(() => {
         if (overlay) overlay.classList.add('hidden');
         if (laser) laser.classList.add('hidden');
         if (statusBadge) {
-            statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span> Document Processed';
+            statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span> Non-Medical Document';
         }
 
-        const fallbackData = {
-            document_type: 'Doctor Prescription Slip',
-            doctor_name: 'Dr. Mohit Atray, MBBS',
-            clinic_or_hospital: 'Dr. Atray General Hospital',
-            patient_name: 'Komal Singh (24 / M)',
-            diagnosis: 'Acute Febrile Illness (Fever)',
-            symptoms: ['High Fever', 'General Fatigue & Myalgia'],
-            medications: [
-                { name: 'Tab. Paracetamol 500mg', dosage: 'Oral after meals if required', timing: 'When fever occurs' },
-                { name: 'Tab. Diclofenac 50mg', dosage: 'Oral 1 tablet', timing: 'If pain occurs' },
-                { name: 'Lab: CBC & Liver Profile', dosage: 'Diagnostic Investigation', timing: 'Routine' }
-            ],
-            recommended_department: 'General Medicine OPD (Room 204)'
+        const invalidFallback = {
+            is_valid_medical_doc: false,
+            document_type: 'Non-Medical Document',
+            detected_topic: 'Unrecognized Content / General Textbook or Article',
+            doctor_name: 'None Detected',
+            clinic_or_hospital: 'Non-Clinical Document',
+            patient_name: 'None',
+            diagnosis: 'No medical diagnosis found',
+            symptoms: [],
+            medications: [],
+            recommended_department: 'Requires Medical Prescription or Lab Report'
         };
 
-        renderExtractedMedicalData(fallbackData, 'Optical Vision Parser');
+        renderExtractedMedicalData(invalidFallback, 'Optical Vision Validator');
     }, 1200);
 }
 
@@ -857,6 +873,39 @@ Only output pure valid JSON without markdown fences.`
 function parseMedicalText(rawText) {
     const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     
+    // Medical relevance detection
+    const clinicalPatterns = [
+        /\bdr\.?\s+[a-z]+/i,
+        /\bdoctor\b/i,
+        /\bhospital\b/i,
+        /\bclinic\b/i,
+        /\bprescription\b/i,
+        /\brx\b/i,
+        /\bpatient\b/i,
+        /\bdiagnosis\b/i,
+        /\btab\.?\s+/i,
+        /\bcap\.?\s+/i,
+        /\bsyp\.?\s+/i,
+        /\binj\.?\s+/i,
+        /\btablet\b/i,
+        /\bcapsule\b/i,
+        /\bsyrup\b/i,
+        /\bmg\b/i,
+        /\bml\b/i,
+        /\bfever\b/i,
+        /\bcough\b/i,
+        /\bbp\b/i,
+        /\bhypertension\b/i,
+        /\bopd\b/i,
+        /\bmbbs\b/i,
+        /\bmd\b/i,
+        /\binvestigation\b/i,
+        /\bcbc\b/i,
+        /\blab\s*report\b/i
+    ];
+
+    const matchedPatterns = clinicalPatterns.filter(p => p.test(rawText));
+
     let doctorName = '';
     let hospitalName = '';
     let patientName = '';
@@ -869,7 +918,7 @@ function parseMedicalText(rawText) {
         const line = lines[i];
 
         // Hospital / Clinic
-        if (!hospitalName && /hospital|clinic|nursing|healthcare|medical center/i.test(line)) {
+        if (!hospitalName && /hospital|clinic|nursing\s*home|healthcare|medical\s*center/i.test(line)) {
             hospitalName = line;
         }
 
@@ -886,10 +935,6 @@ function parseMedicalText(rawText) {
             const ptMatch = line.match(/(?:patient|name|pt\.?)\s*[:\-]?\s*([a-z\s]+)/i);
             if (ptMatch && ptMatch[1].trim().length > 2) {
                 patientName = ptMatch[1].trim();
-            } else if (/^[A-Z][a-z]+\s+[A-Z][a-z]+$/.test(line) && !/hospital|clinic|doctor|prescription|date|reg/i.test(line)) {
-                if (!hospitalName || line !== hospitalName) {
-                    patientName = line;
-                }
             }
         }
 
@@ -923,6 +968,29 @@ function parseMedicalText(rawText) {
         }
     }
 
+    // Strict Medical Document Validation Check
+    const hasDoctorOrClinic = Boolean(doctorName || hospitalName);
+    const hasMeds = medications.length > 0;
+    const hasDiagnosis = Boolean(diagnosis);
+    const isMedical = (matchedPatterns.length >= 2) || (hasDoctorOrClinic && (hasMeds || hasDiagnosis));
+
+    if (!isMedical) {
+        // Extract a snippet of what the document actually is
+        const cleanSnippet = rawText.replace(/\s+/g, ' ').trim().substring(0, 140);
+        return {
+            is_valid_medical_doc: false,
+            document_type: 'Non-Medical Document',
+            detected_topic: cleanSnippet || 'General Text / Non-Clinical Material',
+            doctor_name: 'None Detected',
+            clinic_or_hospital: 'Unrecognized Entity',
+            patient_name: 'N/A',
+            diagnosis: 'No medical diagnosis found',
+            symptoms: [],
+            medications: [],
+            recommended_department: 'Invalid for Clinical OPD Triage'
+        };
+    }
+
     if (!diagnosis) {
         if (/fever|pyrexia|temperature/i.test(rawText)) {
             diagnosis = 'Acute Febrile Illness (Fever)';
@@ -938,7 +1006,6 @@ function parseMedicalText(rawText) {
             department = 'Orthopedic OPD (Room 112)';
         } else {
             diagnosis = 'General Clinical Checkup';
-            symptoms.push('General Malaise');
         }
     }
 
@@ -952,16 +1019,14 @@ function parseMedicalText(rawText) {
     }
 
     return {
+        is_valid_medical_doc: true,
         document_type: 'Doctor Prescription Slip',
-        doctor_name: doctorName || 'Dr. Mohit Atray, MBBS',
-        clinic_or_hospital: hospitalName || 'General Hospital OPD',
-        patient_name: patientName || 'Komal Singh',
+        doctor_name: doctorName || 'Attending Physician',
+        clinic_or_hospital: hospitalName || 'Medical OPD Clinic',
+        patient_name: patientName || kioskState.patient.name,
         diagnosis: diagnosis,
-        symptoms: symptoms.length > 0 ? symptoms : ['Fever'],
-        medications: medications.length > 0 ? medications : [
-            { name: 'Tab. Paracetamol 500 mg', dosage: 'Oral after meals', timing: 'SOS (If needed)' },
-            { name: 'Tab. Diclofenac 50mg', dosage: 'Oral 1 required', timing: 'SOS (If pain)' }
-        ],
+        symptoms: symptoms.length > 0 ? symptoms : ['Reported Symptoms on Prescription'],
+        medications: medications,
         recommended_department: department
     };
 }
@@ -975,6 +1040,59 @@ function renderExtractedMedicalData(data, engineLabel = 'Gemini Vision AI') {
         engineTag.innerHTML = `<span class="material-symbols-outlined text-[16px]">neurology</span> ${engineLabel}`;
     }
 
+    const statusBadge = document.getElementById('scanStatusBadge');
+
+    // Case 1: Non-Medical Document Detected
+    if (data.is_valid_medical_doc === false) {
+        if (statusBadge) {
+            statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span> Non-Medical Document';
+            statusBadge.className = 'bg-amber-100 text-amber-900 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1';
+        }
+
+        const resDocType = document.getElementById('resDocType');
+        if (resDocType) resDocType.textContent = 'Non-Medical Document';
+
+        const resDoctorClinic = document.getElementById('resDoctorClinic');
+        if (resDoctorClinic) resDoctorClinic.textContent = 'No Clinical Provider Found';
+
+        const symptomsList = document.getElementById('resSymptomsList');
+        if (symptomsList) {
+            symptomsList.innerHTML = `
+                <div class="w-full bg-amber-50 border border-amber-300 rounded-xl p-3 text-amber-900 text-xs">
+                    <strong class="flex items-center gap-1 text-amber-800 font-bold mb-1">
+                        <span class="material-symbols-outlined text-[18px]">warning</span>
+                        Unrecognized Document Content
+                    </strong>
+                    <p class="text-[11px] text-amber-800 leading-relaxed mb-1.5">
+                        The scanned page does not appear to be a prescription, doctor note, or lab report.
+                    </p>
+                    <div class="bg-white/80 p-2 rounded border border-amber-200 text-[10px] text-outline font-mono truncate">
+                        Detected: "${data.detected_topic || 'Textbook / Technical document'}"
+                    </div>
+                </div>
+            `;
+        }
+
+        const resMedCount = document.getElementById('resMedCount');
+        const medsList = document.getElementById('resMedicationsList');
+        if (resMedCount) resMedCount.textContent = '0 Medicines';
+        if (medsList) {
+            medsList.innerHTML = '<span class="text-xs text-outline italic block p-2">No medications or prescriptions found in this document</span>';
+        }
+
+        const resDept = document.getElementById('resDepartment');
+        if (resDept) {
+            resDept.textContent = 'Please scan an official medical prescription or report';
+        }
+        return;
+    }
+
+    // Case 2: Valid Medical Document Detected
+    if (statusBadge) {
+        statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500"></span> Verified Medical Document';
+        statusBadge.className = 'bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1';
+    }
+
     const resDocType = document.getElementById('resDocType');
     if (resDocType) resDocType.textContent = data.document_type || 'Prescription Document';
 
@@ -986,7 +1104,7 @@ function renderExtractedMedicalData(data, engineLabel = 'Gemini Vision AI') {
     const symptomsList = document.getElementById('resSymptomsList');
     if (symptomsList) {
         symptomsList.innerHTML = '';
-        const symptoms = data.symptoms || [data.diagnosis || 'Clinical Checkup'];
+        const symptoms = (data.symptoms && data.symptoms.length > 0) ? data.symptoms : [data.diagnosis || 'Clinical Checkup'];
         symptoms.forEach(sym => {
             const chip = document.createElement('span');
             chip.className = 'bg-secondary-container text-on-secondary-container text-xs px-2.5 py-1 rounded-lg font-semibold';
@@ -1028,6 +1146,11 @@ function renderExtractedMedicalData(data, engineLabel = 'Gemini Vision AI') {
 
 // Confirm Document Scan and attach to OPD Visit
 function confirmDocumentScan() {
+    if (extractedMedicalData && extractedMedicalData.is_valid_medical_doc === false) {
+        alert('Cannot attach a non-medical document to patient OPD consultation.\n\nPlease upload or scan an official prescription, doctor slip, or lab test report.');
+        return;
+    }
+
     if (!extractedMedicalData) {
         // Default extraction fallback
         loadSamplePrescription('pediatric_fever');
@@ -1046,7 +1169,7 @@ function confirmDocumentScan() {
     }
 
     // Update assigned department if provided
-    if (data.recommended_department) {
+    if (data.recommended_department && data.recommended_department !== 'Invalid for Clinical OPD Triage') {
         kioskState.assignedDepartment = data.recommended_department;
     }
 
