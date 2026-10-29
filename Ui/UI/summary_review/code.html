@@ -1,0 +1,208 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Summary Review - OPD Kiosk</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-on-surface": "#f0f0f3",
+                        "error-container": "#ffdad6",
+                        "on-tertiary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "surface-bright": "#f9f9fc",
+                        "on-tertiary-fixed-variant": "#40484e",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "secondary-fixed": "#8cf3f3",
+                        "tertiary-fixed": "#dce3eb",
+                        "surface-tint": "#004dea",
+                        "tertiary-container": "#616970",
+                        "on-primary-container": "#e3e6ff",
+                        "outline-variant": "#c3c5d9",
+                        "secondary": "#006a6a",
+                        "primary-fixed-dim": "#b6c4ff",
+                        "background": "#f9f9fc",
+                        "on-primary-fixed": "#001551",
+                        "on-tertiary-container": "#e2e9f0",
+                        "on-error": "#ffffff",
+                        "primary-container": "#0055ff",
+                        "on-surface": "#1a1c1e",
+                        "primary-fixed": "#dce1ff",
+                        "outline": "#737688",
+                        "inverse-primary": "#b6c4ff",
+                        "error": "#ba1a1a",
+                        "inverse-surface": "#2f3133",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-container": "#007070",
+                        "tertiary": "#495157",
+                        "surface-variant": "#e2e2e5",
+                        "surface-container-highest": "#e2e2e5",
+                        "surface": "#f9f9fc",
+                        "secondary-container": "#8cf3f3",
+                        "on-primary-fixed-variant": "#0039b3",
+                        "tertiary-fixed-dim": "#c0c7cf",
+                        "surface-container-high": "#e8e8ea",
+                        "on-secondary-fixed": "#002020",
+                        "on-surface-variant": "#434656",
+                        "surface-container-low": "#f3f3f6",
+                        "on-background": "#1a1c1e",
+                        "surface-container": "#eeeef0",
+                        "secondary-fixed-dim": "#6fd7d6",
+                        "on-secondary-fixed-variant": "#004f4f",
+                        "on-tertiary-fixed": "#151c22",
+                        "primary": "#0041c8",
+                        "surface-dim": "#dadadc"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "32px",
+                        "stack-gap": "24px",
+                        "section-gap": "80px",
+                        "touch-target-min": "80px",
+                        "margin-edge": "64px"
+                    },
+                    "fontFamily": {
+                        "label-lg": ["Sora"],
+                        "button-text": ["Sora"],
+                        "headline-md": ["Sora"],
+                        "display-lg": ["Sora"],
+                        "body-lg": ["Sora"],
+                        "body-md": ["Sora"],
+                        "headline-lg": ["Sora"]
+                    },
+                    "fontSize": {
+                        "label-lg": ["24px", { "lineHeight": "30px", "fontWeight": "600" }],
+                        "button-text": ["28px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "headline-md": ["36px", { "lineHeight": "44px", "fontWeight": "600" }],
+                        "display-lg": ["72px", { "lineHeight": "88px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["28px", { "lineHeight": "40px", "fontWeight": "400" }],
+                        "body-md": ["22px", { "lineHeight": "32px", "fontWeight": "400" }],
+                        "headline-lg": ["48px", { "lineHeight": "60px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Sora', sans-serif; }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col pt-[120px] pb-[100px]">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-surface border-b-2 border-outline-variant fixed top-0 w-full z-50 flex justify-between items-center px-margin-edge h-[120px]">
+<div class="flex items-center gap-4">
+<span class="text-headline-md font-headline-md font-bold text-primary dark:text-primary-fixed">OPD Kiosk</span>
+</div>
+<div class="flex items-center gap-6">
+<button aria-label="home" class="flex items-center justify-center w-touch-target-min h-touch-target-min rounded-full hover:bg-surface-variant dark:hover:bg-surface-variant transition-transform duration-150 active:scale-95 text-on-surface-variant dark:text-on-surface-variant">
+<span class="material-symbols-outlined text-[48px]" data-icon="home">home</span>
+</button>
+<button aria-label="translate" class="flex items-center justify-center w-touch-target-min h-touch-target-min rounded-full hover:bg-surface-variant dark:hover:bg-surface-variant transition-transform duration-150 active:scale-95 text-on-surface-variant dark:text-on-surface-variant">
+<span class="material-symbols-outlined text-[48px]" data-icon="translate">translate</span>
+</button>
+<button class="bg-error text-on-error px-8 h-touch-target-min rounded-full text-button-text font-button-text flex items-center gap-2 hover:opacity-90 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[36px]" data-icon="emergency">emergency</span>
+                SOS / Call Staff
+            </button>
+</div>
+</header>
+<!-- Progress Bar -->
+<div class="fixed top-[120px] left-0 w-full h-[12px] bg-surface-container-highest z-40">
+<div class="h-full bg-primary w-[90%] transition-all duration-500 ease-in-out"></div>
+</div>
+<!-- Main Content Canvas -->
+<main class="flex-grow flex flex-col items-center px-margin-edge py-section-gap w-full max-w-[1920px] mx-auto mt-[12px]">
+<div class="w-full max-w-5xl mb-stack-gap">
+<h1 class="text-display-lg font-display-lg text-on-background mb-4">Review Your Details</h1>
+<p class="text-headline-md font-headline-md text-tertiary">Please ensure all information is correct before submitting.</p>
+</div>
+<div class="w-full max-w-5xl flex flex-col gap-stack-gap mb-section-gap">
+<!-- Patient ID Section -->
+<div class="bg-surface-container-lowest border-2 border-outline-variant rounded-xl p-8 flex items-start justify-between">
+<div>
+<h2 class="text-label-lg font-label-lg text-outline mb-2">Patient ID</h2>
+<p class="text-headline-lg font-headline-lg text-on-surface">PID-9876-5432</p>
+</div>
+<button aria-label="Edit Patient ID" class="w-touch-target-min h-touch-target-min flex items-center justify-center rounded-full bg-surface-container hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-[40px] text-primary" data-icon="edit">edit</span>
+</button>
+</div>
+<!-- Symptoms Section -->
+<div class="bg-surface-container-lowest border-2 border-outline-variant rounded-xl p-8 flex items-start justify-between">
+<div>
+<h2 class="text-label-lg font-label-lg text-outline mb-4">Reported Symptoms</h2>
+<div class="flex flex-wrap gap-4">
+<span class="bg-secondary-container text-on-secondary-container px-6 py-3 rounded-full text-label-lg font-label-lg flex items-center gap-2">
+<span class="material-symbols-outlined" data-icon="thermostat">thermostat</span>
+                            Fever
+                        </span>
+<span class="bg-secondary-container text-on-secondary-container px-6 py-3 rounded-full text-label-lg font-label-lg flex items-center gap-2">
+<span class="material-symbols-outlined" data-icon="sick">sick</span>
+                            Headache
+                        </span>
+<span class="bg-secondary-container text-on-secondary-container px-6 py-3 rounded-full text-label-lg font-label-lg flex items-center gap-2">
+<span class="material-symbols-outlined" data-icon="pulmonology">pulmonology</span>
+                            Cough
+                        </span>
+</div>
+</div>
+<button aria-label="Edit Symptoms" class="w-touch-target-min h-touch-target-min flex items-center justify-center rounded-full bg-surface-container hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-[40px] text-primary" data-icon="edit">edit</span>
+</button>
+</div>
+<!-- Scanned Docs Section -->
+<div class="bg-surface-container-lowest border-2 border-outline-variant rounded-xl p-8 flex items-start justify-between">
+<div>
+<h2 class="text-label-lg font-label-lg text-outline mb-4">Scanned Documents</h2>
+<div class="flex flex-col gap-4">
+<div class="flex items-center gap-4 text-headline-md font-headline-md text-on-surface">
+<span class="material-symbols-outlined text-[48px] text-secondary" data-icon="description">description</span>
+                            Previous Prescription (Dr. Sharma)
+                        </div>
+<div class="flex items-center gap-4 text-headline-md font-headline-md text-on-surface">
+<span class="material-symbols-outlined text-[48px] text-secondary" data-icon="lab_profile">lab_profile</span>
+                            Blood Test Report (Nov 2023)
+                        </div>
+</div>
+</div>
+<button aria-label="Edit Documents" class="w-touch-target-min h-touch-target-min flex items-center justify-center rounded-full bg-surface-container hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-[40px] text-primary" data-icon="edit">edit</span>
+</button>
+</div>
+</div>
+<!-- Action Area -->
+<div class="w-full max-w-5xl flex flex-col items-center gap-8 mt-auto">
+<div class="flex items-center gap-4 text-headline-md font-headline-md text-tertiary bg-surface-container-low px-8 py-4 rounded-xl border border-outline-variant">
+<span class="material-symbols-outlined text-[48px] text-primary" data-icon="info">info</span>
+                This information will be sent directly to your doctor.
+            </div>
+<button class="w-full bg-primary text-on-primary min-h-[120px] rounded-full text-[40px] font-button-text flex items-center justify-center gap-4 hover:bg-on-primary-fixed-variant transition-colors shadow-lg active:scale-95 duration-150">
+                Proceed to Submit
+                <span class="material-symbols-outlined text-[48px]" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+</main>
+<!-- Footer / Privacy Toast -->
+<footer class="bg-secondary-container dark:bg-secondary-container fixed bottom-0 w-full z-50 flex justify-between items-center px-margin-edge h-[100px] shadow-2xl rounded-t-xl">
+<div class="flex items-center gap-4 text-on-secondary-container dark:text-on-secondary-container">
+<span class="material-symbols-outlined text-[36px]" data-icon="lock">lock</span>
+<span class="text-body-lg font-body-lg">Your data is private. This session will clear automatically.</span>
+</div>
+<div class="flex items-center gap-8">
+<button class="text-on-secondary-container dark:text-on-secondary-container opacity-80 hover:opacity-100 text-label-lg font-label-lg">Accessibility Settings</button>
+<button class="text-on-secondary-container dark:text-on-secondary-container opacity-80 hover:opacity-100 text-label-lg font-label-lg">Language</button>
+</div>
+</footer>
+</body></html>

@@ -1,0 +1,253 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>MediKiosk - Language &amp; Consent</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-on-surface": "#f0f0f3",
+                      "error-container": "#ffdad6",
+                      "on-tertiary": "#ffffff",
+                      "on-primary": "#ffffff",
+                      "surface-bright": "#f9f9fc",
+                      "on-tertiary-fixed-variant": "#40484e",
+                      "surface-container-lowest": "#ffffff",
+                      "on-error-container": "#93000a",
+                      "secondary-fixed": "#8cf3f3",
+                      "tertiary-fixed": "#dce3eb",
+                      "surface-tint": "#004dea",
+                      "tertiary-container": "#616970",
+                      "on-primary-container": "#e3e6ff",
+                      "outline-variant": "#c3c5d9",
+                      "secondary": "#006a6a",
+                      "primary-fixed-dim": "#b6c4ff",
+                      "background": "#f9f9fc",
+                      "on-primary-fixed": "#001551",
+                      "on-tertiary-container": "#e2e9f0",
+                      "on-error": "#ffffff",
+                      "primary-container": "#0055ff",
+                      "on-surface": "#1a1c1e",
+                      "primary-fixed": "#dce1ff",
+                      "outline": "#737688",
+                      "inverse-primary": "#b6c4ff",
+                      "error": "#ba1a1a",
+                      "inverse-surface": "#2f3133",
+                      "on-secondary": "#ffffff",
+                      "on-secondary-container": "#007070",
+                      "tertiary": "#495157",
+                      "surface-variant": "#e2e2e5",
+                      "surface-container-highest": "#e2e2e5",
+                      "surface": "#f9f9fc",
+                      "secondary-container": "#8cf3f3",
+                      "on-primary-fixed-variant": "#0039b3",
+                      "tertiary-fixed-dim": "#c0c7cf",
+                      "surface-container-high": "#e8e8ea",
+                      "on-secondary-fixed": "#002020",
+                      "on-surface-variant": "#434656",
+                      "surface-container-low": "#f3f3f6",
+                      "on-background": "#1a1c1e",
+                      "surface-container": "#eeeef0",
+                      "secondary-fixed-dim": "#6fd7d6",
+                      "on-secondary-fixed-variant": "#004f4f",
+                      "on-tertiary-fixed": "#151c22",
+                      "primary": "#0041c8",
+                      "surface-dim": "#dadadc"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter": "32px",
+                      "stack-gap": "24px",
+                      "section-gap": "80px",
+                      "touch-target-min": "80px",
+                      "margin-edge": "64px"
+              },
+              "fontFamily": {
+                      "label-lg": ["Sora"],
+                      "button-text": ["Sora"],
+                      "headline-md": ["Sora"],
+                      "display-lg": ["Sora"],
+                      "body-lg": ["Sora"],
+                      "body-md": ["Sora"],
+                      "headline-lg": ["Sora"]
+              },
+              "fontSize": {
+                      "label-lg": ["24px", {"lineHeight": "30px", "fontWeight": "600"}],
+                      "button-text": ["28px", {"lineHeight": "32px", "fontWeight": "700"}],
+                      "headline-md": ["36px", {"lineHeight": "44px", "fontWeight": "600"}],
+                      "display-lg": ["72px", {"lineHeight": "88px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "body-lg": ["28px", {"lineHeight": "40px", "fontWeight": "400"}],
+                      "body-md": ["22px", {"lineHeight": "32px", "fontWeight": "400"}],
+                      "headline-lg": ["48px", {"lineHeight": "60px", "fontWeight": "600"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        body { font-family: 'Sora', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .icon-fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* Ambient animation for active state */
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(0, 85, 255, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 85, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 85, 255, 0); }
+        }
+        .active-ring {
+            animation: pulse-ring 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background h-screen w-screen overflow-hidden flex flex-col antialiased">
+<!-- Top AppBar (Linear/Transactional intent -> Normally hidden, but prompt requested Top bar with SOS button specifically. Will render modified version focused purely on SOS/Header) -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-margin-edge h-[120px] bg-surface dark:bg-surface bg-surface-container-low dark:bg-surface-container-low border-b-2 border-outline-variant">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[48px] text-primary dark:text-primary-fixed icon-fill">medical_services</span>
+<h1 class="text-headline-md font-headline-md font-bold text-primary dark:text-primary-fixed">OPD Kiosk</h1>
+</div>
+<!-- Emergency SOS -->
+<button aria-label="SOS / Call Staff" class="bg-error text-on-error h-touch-target-min px-8 rounded-full flex items-center justify-center gap-3 shadow-md hover:bg-error-container hover:text-on-error-container transition-colors">
+<span class="material-symbols-outlined text-[36px] icon-fill">emergency</span>
+<span class="text-button-text font-button-text uppercase tracking-wider">SOS / Call Staff</span>
+</button>
+</header>
+<!-- Progress Bar (Fixed at top) -->
+<div class="fixed top-[120px] left-0 w-full h-[12px] bg-surface-variant z-40">
+<div class="h-full bg-primary w-1/4 transition-all duration-500 rounded-r-full"></div>
+</div>
+<!-- Main Canvas -->
+<main class="flex-1 pt-[150px] pb-[120px] px-margin-edge flex flex-col overflow-y-auto max-w-[1920px] mx-auto w-full">
+<!-- Header & Audio Guide Indicator -->
+<div class="flex justify-between items-end mb-8 shrink-0">
+<div>
+<h2 class="text-display-lg font-display-lg text-on-surface mb-2">Select Language</h2>
+<p class="text-headline-md font-headline-md text-on-surface-variant">Please choose your preferred language to continue.</p>
+</div>
+<div class="flex items-center gap-4 bg-tertiary-fixed text-on-tertiary-fixed px-6 py-4 rounded-full border-2 border-tertiary-fixed-dim">
+<span class="material-symbols-outlined text-[40px] text-primary active-ring rounded-full icon-fill">volume_up</span>
+<span class="text-label-lg font-label-lg">Voice guidance is on</span>
+</div>
+</div>
+<!-- Language Grid -->
+<div class="grid grid-cols-4 gap-6 flex-1 mb-6">
+<!-- English (Selected) -->
+<button class="relative bg-surface-container-lowest border-[4px] border-primary rounded-xl p-6 flex flex-col items-center justify-center gap-4 shadow-[0_8px_32px_rgba(0,65,200,0.15)] transition-all transform scale-[1.02]">
+<div class="absolute top-4 right-4 bg-primary text-on-primary rounded-full w-12 h-12 flex items-center justify-center">
+<span class="material-symbols-outlined text-[32px] icon-fill">check_circle</span>
+</div>
+<div class="w-24 h-24 rounded-full bg-surface-variant overflow-hidden border-2 border-outline-variant flex items-center justify-center text-[48px]">
+                    🇬🇧
+                </div>
+<div class="text-center">
+<div class="text-headline-md font-headline-md text-on-surface">English</div>
+</div>
+</button>
+<!-- Hindi -->
+<button class="bg-surface-container-lowest border-2 border-[#D1E4F5] rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:bg-surface-container-low hover:border-primary-fixed transition-all">
+<div class="w-24 h-24 rounded-full bg-surface-variant overflow-hidden border-2 border-outline-variant flex items-center justify-center text-[48px]">
+                    🇮🇳
+                </div>
+<div class="text-center">
+<div class="text-headline-md font-headline-md text-on-surface">हिन्दी</div>
+<div class="text-body-md font-body-md text-on-surface-variant">Hindi</div>
+</div>
+</button>
+<!-- Bengali -->
+<button class="bg-surface-container-lowest border-2 border-[#D1E4F5] rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:bg-surface-container-low hover:border-primary-fixed transition-all">
+<div class="w-24 h-24 rounded-full bg-surface-variant overflow-hidden border-2 border-outline-variant flex items-center justify-center text-[48px]">
+                    🇮🇳
+                </div>
+<div class="text-center">
+<div class="text-headline-md font-headline-md text-on-surface">বাংলা</div>
+<div class="text-body-md font-body-md text-on-surface-variant">Bengali</div>
+</div>
+</button>
+<!-- Tamil -->
+<button class="bg-surface-container-lowest border-2 border-[#D1E4F5] rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:bg-surface-container-low hover:border-primary-fixed transition-all">
+<div class="w-24 h-24 rounded-full bg-surface-variant overflow-hidden border-2 border-outline-variant flex items-center justify-center text-[48px]">
+                    🇮🇳
+                </div>
+<div class="text-center">
+<div class="text-headline-md font-headline-md text-on-surface">தமிழ்</div>
+<div class="text-body-md font-body-md text-on-surface-variant">Tamil</div>
+</div>
+</button>
+<!-- Telugu -->
+<button class="bg-surface-container-lowest border-2 border-[#D1E4F5] rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:bg-surface-container-low hover:border-primary-fixed transition-all">
+<div class="w-24 h-24 rounded-full bg-surface-variant overflow-hidden border-2 border-outline-variant flex items-center justify-center text-[48px]">
+                    🇮🇳
+                </div>
+<div class="text-center">
+<div class="text-headline-md font-headline-md text-on-surface">తెలుగు</div>
+<div class="text-body-md font-body-md text-on-surface-variant">Telugu</div>
+</div>
+</button>
+<!-- Marathi -->
+<button class="bg-surface-container-lowest border-2 border-[#D1E4F5] rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:bg-surface-container-low hover:border-primary-fixed transition-all">
+<div class="w-24 h-24 rounded-full bg-surface-variant overflow-hidden border-2 border-outline-variant flex items-center justify-center text-[48px]">
+                    🇮🇳
+                </div>
+<div class="text-center">
+<div class="text-headline-md font-headline-md text-on-surface">मराठी</div>
+<div class="text-body-md font-body-md text-on-surface-variant">Marathi</div>
+</div>
+</button>
+<!-- Gujarati -->
+<button class="bg-surface-container-lowest border-2 border-[#D1E4F5] rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:bg-surface-container-low hover:border-primary-fixed transition-all">
+<div class="w-24 h-24 rounded-full bg-surface-variant overflow-hidden border-2 border-outline-variant flex items-center justify-center text-[48px]">
+                    🇮🇳
+                </div>
+<div class="text-center">
+<div class="text-headline-md font-headline-md text-on-surface">ગુજરાતી</div>
+<div class="text-body-md font-body-md text-on-surface-variant">Gujarati</div>
+</div>
+</button>
+<!-- Urdu -->
+<button class="bg-surface-container-lowest border-2 border-[#D1E4F5] rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:bg-surface-container-low hover:border-primary-fixed transition-all">
+<div class="w-24 h-24 rounded-full bg-surface-variant overflow-hidden border-2 border-outline-variant flex items-center justify-center text-[48px]">
+                    🇮🇳
+                </div>
+<div class="text-center">
+<div class="text-headline-md font-headline-md text-on-surface">اردو</div>
+<div class="text-body-md font-body-md text-on-surface-variant">Urdu</div>
+</div>
+</button>
+</div>
+<!-- Consent Area & Primary Action -->
+<div class="shrink-0 flex items-center justify-end border-t border-outline-variant pt-6">
+<button class="bg-primary text-on-primary min-h-[80px] px-12 rounded-xl flex items-center justify-center gap-6 shadow-lg hover:bg-on-primary-fixed-variant transition-colors group">
+<span class="text-headline-md font-headline-md font-bold uppercase tracking-wide">I Agree &amp; Continue</span>
+<span class="material-symbols-outlined text-[48px] group-hover:translate-x-2 transition-transform">check</span>
+</button>
+</div>
+</main>
+<!-- Footer Privacy Toast -->
+<footer class="fixed bottom-0 w-full z-50 flex justify-between items-center px-margin-edge h-[100px] shadow-2xl bg-secondary-container dark:bg-secondary-container shadow-sm rounded-t-xl text-on-secondary-container dark:text-on-secondary-container">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[36px] icon-fill">shield_lock</span>
+<span class="text-label-lg font-label-lg font-semibold">Your data is private. This session will clear automatically.</span>
+</div>
+<div class="flex gap-8">
+<button class="text-on-secondary-container dark:text-on-secondary-container opacity-80 hover:opacity-100 flex items-center gap-2">
+<span class="material-symbols-outlined text-[32px]">accessibility_new</span>
+<span class="text-label-lg font-label-lg">Accessibility Settings</span>
+</button>
+</div>
+</footer>
+</body></html>

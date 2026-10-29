@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HealVoice - OPD Kiosk Platform</title>
+    <!-- Tailwind CSS with Forms and Container Queries -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0041c8",
+                        "primary-container": "#0055ff",
+                        "on-primary": "#ffffff",
+                        "on-primary-container": "#e3e6ff",
+                        "primary-fixed": "#dce1ff",
+                        "primary-fixed-dim": "#b6c4ff",
+                        "secondary": "#006a6a",
+                        "secondary-container": "#8cf3f3",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-container": "#007070",
+                        "secondary-fixed": "#8cf3f3",
+                        "secondary-fixed-dim": "#6fd7d6",
+                        "tertiary": "#495157",
+                        "tertiary-container": "#616970",
+                        "tertiary-fixed": "#dce3eb",
+                        "surface": "#f9f9fc",
+                        "surface-dim": "#dadadc",
+                        "surface-bright": "#f9f9fc",
+                        "surface-variant": "#e2e2e5",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-low": "#f3f3f6",
+                        "surface-container": "#eeeef0",
+                        "surface-container-high": "#e8e8ea",
+                        "surface-container-highest": "#e2e2e5",
+                        "background": "#f9f9fc",
+                        "on-background": "#1a1c1e",
+                        "on-surface": "#1a1c1e",
+                        "on-surface-variant": "#434656",
+                        "outline": "#737688",
+                        "outline-variant": "#c3c5d9",
+                        "error": "#ba1a1a",
+                        "on-error": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "on-error-container": "#93000a"
+                    },
+                    fontFamily: {
+                        "sans": ["Sora", "sans-serif"],
+                        "sora": ["Sora", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "sm": "0.25rem",
+                        "md": "0.75rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "touch-target-min": "80px",
+                        "margin-edge": "64px",
+                        "gutter": "32px",
+                        "stack-gap": "24px",
+                        "section-gap": "80px"
+                    }
+                }
+            }
+        };
+    </script>
+</head>
+<body class="bg-background text-on-background h-screen w-screen overflow-hidden flex flex-col font-sans select-none antialiased">
+
+    <!-- Top Persistent Progress Bar -->
+    <div id="topProgressBar" class="fixed top-0 left-0 w-full h-[10px] bg-surface-container-highest z-[70] hidden">
+        <div id="progressFill" class="h-full bg-primary transition-all duration-500 rounded-r-full" style="width: 15%;"></div>
+    </div>
+
+    <!-- Top Persistent Header (shown on flow screens) -->
+    <header id="globalHeader" class="fixed top-[10px] left-0 w-full z-[60] flex justify-between items-center px-8 md:px-margin-edge h-[100px] bg-surface-container-lowest/95 backdrop-blur border-b-2 border-outline-variant hidden">
+        <div class="flex items-center gap-4 cursor-pointer" onclick="navigateTo('home')">
+            <div class="w-12 h-12 rounded-xl bg-primary-fixed flex items-center justify-center text-primary">
+                <span class="material-symbols-outlined text-[32px] icon-fill">medical_services</span>
+            </div>
+            <div>
+                <span class="text-2xl font-bold text-primary tracking-tight">HealVoice</span>
+                <span class="text-xs uppercase tracking-widest text-on-surface-variant block font-semibold">AI OPD Kiosk</span>
+            </div>
+        </div>
+
+        <!-- Step Title Badge -->
+        <div id="headerStepBadge" class="hidden md:flex items-center gap-3 bg-surface-container px-6 py-2.5 rounded-full border border-outline-variant/60">
+            <span class="w-2.5 h-2.5 rounded-full bg-primary animate-pulse"></span>
+            <span id="stepTitle" class="text-sm font-semibold text-on-surface">Step 1 of 6</span>
+        </div>
+
+        <!-- Header Actions -->
+        <div class="flex items-center gap-4">
+            <button onclick="navigateTo('home')" aria-label="Home" class="w-14 h-14 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-variant active:scale-95 transition-all" title="Home">
+                <span class="material-symbols-outlined text-[32px]">home</span>
+            </button>
+            <button onclick="openLanguageModal()" aria-label="Change Language" class="w-14 h-14 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-variant active:scale-95 transition-all" title="Language">
+                <span class="material-symbols-outlined text-[32px]">translate</span>
+            </button>
+            <button onclick="openSosModal()" aria-label="Emergency SOS" class="h-14 px-6 rounded-full bg-error text-on-error font-bold flex items-center gap-2 hover:bg-red-700 active:scale-95 shadow-md transition-all">
+                <span class="material-symbols-outlined text-[28px] icon-fill">emergency</span>
+                <span class="text-sm uppercase tracking-wider hidden sm:inline">SOS / Staff</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Screens Container -->
+    <main id="appContainer" class="flex-1 w-full h-full relative overflow-hidden">
+
+        <!-- ============================================== -->
+        <!-- SCREEN 1: IDLE / ATTRACT SCREEN               -->
+        <!-- ============================================== -->
+        <section id="screen-idle" class="screen-view absolute inset-0 flex flex-col justify-between p-8 md:p-margin-edge bg-gradient-to-br from-[#f0f7ff] via-surface to-[#e8f1f9] z-10">
+            <!-- Top brand header -->
+            <div class="flex justify-between items-center w-full">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-white shadow-lg">
+                        <span class="material-symbols-outlined text-[44px] icon-fill">local_hospital</span>
+                    </div>
+                    <div>
+                        <h1 class="text-3xl md:text-4xl font-bold text-primary">City Care Memorial Hospital</h1>
+                        <p class="text-on-surface-variant text-base font-semibold">Self-Service AI OPD Registration Kiosk</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 bg-surface-container-lowest px-6 py-3 rounded-full border-2 border-outline-variant shadow-sm">
+                    <span class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></span>
+                    <span class="text-sm font-bold text-on-surface">Kiosk Active • Room 102</span>
+                </div>
+            </div>
+
+            <!-- Central Attract Hero -->
+            <div class="flex-1 flex flex-col items-center justify-center text-center my-6">
+                <!-- Glowing Pulsing Orb -->
+                <div onclick="navigateTo('language')" class="relative cursor-pointer group mb-8">
+                    <div class="w-56 h-56 rounded-full bg-primary/10 absolute -inset-4 blur-2xl group-hover:bg-primary/20 transition-all"></div>
+                    <div class="w-48 h-48 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white flex flex-col items-center justify-center shadow-2xl active-ring group-hover:scale-105 transition-transform">
+                        <span class="material-symbols-outlined text-[72px] icon-fill animate-bounce">touch_app</span>
+                        <span class="text-lg font-bold uppercase tracking-wider mt-2">Touch Here</span>
+                    </div>
+                </div>
+
+                <h2 class="text-4xl md:text-6xl font-bold text-on-surface mb-4 tracking-tight">
+                    Welcome to OPD Check-in
+                </h2>
+                <p class="text-2xl text-on-surface-variant max-w-3xl mb-8">
+                    Fast registration, AI doctor symptom triage, document scan & instant OPD consultation token.
+                </p>
+
+                <!-- Languages preview tags -->
+                <div class="flex flex-wrap items-center justify-center gap-4 mb-8">
+                    <span class="bg-surface-container-lowest px-5 py-2.5 rounded-full border-2 border-outline-variant text-base font-bold shadow-sm">English</span>
+                    <span class="bg-surface-container-lowest px-5 py-2.5 rounded-full border-2 border-outline-variant text-base font-bold shadow-sm">हिन्दी (Hindi)</span>
+                    <span class="bg-surface-container-lowest px-5 py-2.5 rounded-full border-2 border-outline-variant text-base font-bold shadow-sm">मराठी (Marathi)</span>
+                    <span class="bg-surface-container-lowest px-5 py-2.5 rounded-full border-2 border-outline-variant text-base font-bold shadow-sm">தமிழ் (Tamil)</span>
+                    <span class="bg-surface-container-lowest px-5 py-2.5 rounded-full border-2 border-outline-variant text-base font-bold shadow-sm">తెలుగు (Telugu)</span>
+                </div>
+
+                <!-- Big Touch Button -->
+                <button onclick="navigateTo('language')" class="h-20 px-12 bg-primary hover:bg-primary-container text-white rounded-full text-2xl font-bold shadow-xl flex items-center gap-4 active:scale-95 transition-all">
+                    <span>Touch Screen to Start / शुरू करने के लिए छुएं</span>
+                    <span class="material-symbols-outlined text-[36px]">arrow_forward</span>
+                </button>
+            </div>
+
+            <!-- Bottom Assist Strip -->
+            <div class="flex flex-col md:flex-row items-center justify-between gap-4 bg-surface-container-lowest p-6 rounded-2xl border-2 border-outline-variant shadow-sm">
+                <div class="flex items-center gap-4">
+                    <span class="material-symbols-outlined text-primary text-[36px]">record_voice_over</span>
+                    <span class="text-base text-on-surface-variant font-medium">Voice assistance enabled. You can speak or touch at any time.</span>
+                </div>
+                <button onclick="openSosModal()" class="h-14 px-8 rounded-full bg-error/10 text-error font-bold flex items-center gap-2 hover:bg-error hover:text-white transition-all">
+                    <span class="material-symbols-outlined text-[28px] icon-fill">support_agent</span>
+                    <span>Need Help from Staff</span>
+                </button>
+            </div>
+        </section>
+
+
+        <!-- ============================================== -->
+        <!-- SCREEN 2: LANGUAGE & CONSENT VIEW             -->
+        <!-- ============================================== -->
+        <section id="screen-language" class="screen-view absolute inset-0 flex flex-col pt-[120px] pb-[100px] px-8 md:px-margin-edge bg-surface overflow-y-auto hidden">
+            <div class="max-w-6xl mx-auto w-full flex-1 flex flex-col justify-between py-6">
+                <!-- Header -->
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
+                    <div>
+                        <h2 class="text-3xl md:text-5xl font-bold text-on-surface mb-2">Select Your Language</h2>
+                        <p class="text-xl text-on-surface-variant">अपनी पसंदीदा भाषा चुनें / Select language to continue</p>
+                    </div>
+                    <div class="flex items-center gap-3 bg-secondary-fixed/50 text-on-secondary-fixed px-5 py-3 rounded-full border border-secondary">
+                        <span class="material-symbols-outlined text-secondary text-[32px] icon-fill">volume_up</span>
+                        <span class="font-bold text-sm">Voice guidance active</span>
+                    </div>
+                </div>
+
+                <!-- Languages Grid -->
+                <div id="languageGrid" class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+                    <!-- Cards will be populated by JS -->
+                </div>
+
+                <!-- Consent Box -->
+                <div class="bg-surface-container-lowest border-2 border-outline-variant rounded-2xl p-6 mb-8 shadow-sm">
+                    <label class="flex items-start gap-4 cursor-pointer">
+                        <input type="checkbox" id="consentCheck" checked class="w-8 h-8 text-primary rounded-lg border-2 border-outline mt-1 cursor-pointer">
+                        <div>
+                            <span class="text-lg font-bold text-on-surface block">Data Privacy & Hospital Triage Consent</span>
+                            <span class="text-sm text-on-surface-variant leading-relaxed block mt-1">
+                                I consent to using the AI-assisted OPD Kiosk for symptom screening. My data will be kept strictly private and automatically deleted after OPD token generation in compliance with hospital privacy policy.
+                            </span>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Bottom Navigation Buttons -->
+                <div class="flex items-center justify-between gap-6 pt-4 border-t-2 border-outline-variant">
+                    <button onclick="navigateTo('idle')" class="h-16 px-8 rounded-full bg-surface-container hover:bg-surface-variant text-on-surface text-lg font-bold flex items-center gap-3 active:scale-95 transition-all">
+                        <span class="material-symbols-outlined text-[28px]">arrow_back</span>
+                        <span>Back</span>
+                    </button>
+                    <button onclick="confirmLanguageSelection()" class="h-16 px-12 rounded-full bg-primary hover:bg-primary-container text-white text-xl font-bold shadow-lg flex items-center gap-3 active:scale-95 transition-all">
+                        <span>Continue / आगे बढ़ें</span>
+                        <span class="material-symbols-outlined text-[32px]">arrow_forward</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ============================================== -->
+        <!-- SCREEN 3: LOGIN / REGISTRATION VIEW           -->
+        <!-- ============================================== -->
+        <section id="screen-login" class="screen-view absolute inset-0 flex flex-col pt-[120px] pb-[100px] px-8 md:px-margin-edge bg-surface overflow-y-auto hidden">
+            <div class="max-w-6xl mx-auto w-full flex-1 flex flex-col justify-between py-6">
+                <!-- Title -->
+                <div class="mb-6">
+                    <h2 class="text-3xl md:text-5xl font-bold text-on-surface mb-2">Patient Check-In</h2>
+                    <p class="text-xl text-on-surface-variant">Enter Mobile Number or ABHA Health ID</p>
+                </div>
+
+                <!-- Input + Numpad Container -->
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-8 items-start mb-6">
+                    <!-- Left: Input & Modes -->
+                    <div class="md:col-span-6 flex flex-col gap-6">
+                        <!-- Mode Selector Tabs -->
+                        <div class="flex bg-surface-container p-2 rounded-2xl border border-outline-variant">
+                            <button id="tabPhone" onclick="setLoginMode('phone')" class="flex-1 py-4 text-center rounded-xl font-bold text-lg bg-surface-container-lowest text-primary shadow-sm transition-all">
+                                Mobile Number
+                            </button>
+                            <button id="tabAbha" onclick="setLoginMode('abha')" class="flex-1 py-4 text-center rounded-xl font-bold text-lg text-on-surface-variant hover:text-on-surface transition-all">
+                                ABHA / UHID ID
+                            </button>
+                        </div>
+
+                        <!-- Phone / ID Display -->
+                        <div class="bg-surface-container-lowest border-4 border-primary rounded-2xl p-6 shadow-md">
+                            <label class="text-sm font-bold uppercase tracking-wider text-outline block mb-2" id="loginInputLabel">Enter 10-Digit Mobile Number</label>
+                            <div class="flex items-center gap-4">
+                                <span class="material-symbols-outlined text-primary text-[40px]" id="loginInputIcon">call</span>
+                                <input type="text" id="patientInputField" readonly placeholder="Enter number..." class="w-full text-3xl md:text-4xl font-bold text-on-surface bg-transparent border-none outline-none tracking-wider" value="9876543210">
+                            </div>
+                        </div>
+
+                        <!-- Quick Patient Name Card (Auto-detected) -->
+                        <div class="bg-secondary-container/40 border-2 border-secondary/30 rounded-2xl p-6 flex items-center gap-5">
+                            <div class="w-16 h-16 rounded-full bg-secondary text-white flex items-center justify-center font-bold text-2xl">
+                                AS
+                            </div>
+                            <div>
+                                <span class="text-xs font-bold uppercase tracking-wider text-secondary">Verified Hospital Record</span>
+                                <h3 class="text-2xl font-bold text-on-surface">Aarav Sharma</h3>
+                                <p class="text-sm text-on-surface-variant">Age: 32 • Gender: Male • UHID: 2026-98124</p>
+                            </div>
+                        </div>
+
+                        <!-- New Registration link -->
+                        <button onclick="setGuestPatient()" class="p-4 rounded-xl border-2 border-dashed border-outline-variant hover:border-primary text-center font-bold text-primary transition-all">
+                            + First time visiting? Click for Quick New Registration
+                        </button>
+                    </div>
+
+                    <!-- Right: Touch Screen Numeric Keypad -->
+                    <div class="md:col-span-6 bg-surface-container-lowest border-2 border-outline-variant rounded-3xl p-6 shadow-md">
+                        <div class="grid grid-cols-3 gap-4">
+                            <button onclick="appendNum('1')" class="kiosk-btn h-20 bg-surface-container-low hover:bg-surface-container rounded-2xl text-3xl font-bold text-on-surface flex items-center justify-center shadow-sm">1</button>
+                            <button onclick="appendNum('2')" class="kiosk-btn h-20 bg-surface-container-low hover:bg-surface-container rounded-2xl text-3xl font-bold text-on-surface flex items-center justify-center shadow-sm">2</button>
+                            <button onclick="appendNum('3')" class="kiosk-btn h-20 bg-surface-container-low hover:bg-surface-container rounded-2xl text-3xl font-bold text-on-surface flex items-center justify-center shadow-sm">3</button>
+                            <button onclick="appendNum('4')" class="kiosk-btn h-20 bg-surface-container-low hover:bg-surface-container rounded-2xl text-3xl font-bold text-on-surface flex items-center justify-center shadow-sm">4</button>
+                            <button onclick="appendNum('5')" class="kiosk-btn h-20 bg-surface-container-low hover:bg-surface-container rounded-2xl text-3xl font-bold text-on-surface flex items-center justify-center shadow-sm">5</button>
+                            <button onclick="appendNum('6')" class="kiosk-btn h-20 bg-surface-container-low hover:bg-surface-container rounded-2xl text-3xl font-bold text-on-surface flex items-center justify-center shadow-sm">6</button>
+                            <button onclick="appendNum('7')" class="kiosk-btn h-20 bg-surface-container-low hover:bg-surface-container rounded-2xl text-3xl font-bold text-on-surface flex items-center justify-center shadow-sm">7</button>
+                            <button onclick="appendNum('8')" class="kiosk-btn h-20 bg-surface-container-low hover:bg-surface-container rounded-2xl text-3xl font-bold text-on-surface flex items-center justify-center shadow-sm">8</button>
+                            <button onclick="appendNum('9')" class="kiosk-btn h-20 bg-surface-container-low hover:bg-surface-container rounded-2xl text-3xl font-bold text-on-surface flex items-center justify-center shadow-sm">9</button>
+                            <button onclick="clearNum()" class="kiosk-btn h-20 bg-error/10 hover:bg-error/20 text-error rounded-2xl text-xl font-bold flex items-center justify-center shadow-sm">CLEAR</button>
+                            <button onclick="appendNum('0')" class="kiosk-btn h-20 bg-surface-container-low hover:bg-surface-container rounded-2xl text-3xl font-bold text-on-surface flex items-center justify-center shadow-sm">0</button>
+                            <button onclick="backspaceNum()" class="kiosk-btn h-20 bg-surface-container hover:bg-surface-variant text-on-surface rounded-2xl text-xl font-bold flex items-center justify-center shadow-sm">
+                                <span class="material-symbols-outlined text-[36px]">backspace</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Nav -->
+                <div class="flex items-center justify-between gap-6 pt-4 border-t-2 border-outline-variant">
+                    <button onclick="navigateTo('language')" class="h-16 px-8 rounded-full bg-surface-container hover:bg-surface-variant text-on-surface text-lg font-bold flex items-center gap-3 active:scale-95 transition-all">
+                        <span class="material-symbols-outlined text-[28px]">arrow_back</span>
+                        <span>Back</span>
+                    </button>
+                    <button onclick="confirmLogin()" class="h-16 px-12 rounded-full bg-primary hover:bg-primary-container text-white text-xl font-bold shadow-lg flex items-center gap-3 active:scale-95 transition-all">
+                        <span>Verify & Proceed / पुष्टि करें</span>
+                        <span class="material-symbols-outlined text-[32px]">arrow_forward</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ============================================== -->
+        <!-- SCREEN 4: KIOSK HOME SHELL                    -->
+        <!-- ============================================== -->
+        <section id="screen-home" class="screen-view absolute inset-0 flex flex-col pt-[120px] pb-[100px] px-8 md:px-margin-edge bg-gradient-to-b from-[#e8f1f9] to-surface overflow-y-auto hidden">
+            <div class="max-w-6xl mx-auto w-full flex-1 flex flex-col justify-between py-6">
+                <!-- Greeting -->
+                <div class="text-center mb-8">
+                    <span class="inline-block bg-primary-fixed text-primary px-6 py-2 rounded-full text-sm font-bold uppercase tracking-wider mb-3">Welcome to Care Hub</span>
+                    <h2 class="text-4xl md:text-6xl font-bold text-on-surface mb-3" id="homePatientGreeting">Welcome, Aarav</h2>
+                    <p class="text-xl md:text-2xl text-on-surface-variant">Please choose how you would like to proceed today</p>
+                </div>
+
+                <!-- Bento Grid of Main Options -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+                    <!-- Option 1: AI Assistant (Featured) -->
+                    <button onclick="navigateTo('healthcare-system')" class="kiosk-btn group bg-surface-container-lowest hover:border-primary border-4 border-primary/20 rounded-3xl p-8 flex flex-col items-center text-center shadow-lg hover:shadow-2xl transition-all">
+                        <div class="w-28 h-28 rounded-full bg-primary-fixed group-hover:scale-110 flex items-center justify-center text-primary mb-6 transition-transform">
+                            <span class="material-symbols-outlined text-[64px] icon-fill">neurology</span>
+                        </div>
+                        <h3 class="text-2xl md:text-3xl font-bold text-on-surface mb-3">Talk to AI Doctor</h3>
+                        <p class="text-base text-on-surface-variant leading-relaxed">
+                            Describe your symptoms in natural speech or text for rapid clinical OPD triage & doctor matching.
+                        </p>
+                        <span class="mt-6 inline-flex items-center gap-2 text-primary font-bold text-lg group-hover:translate-x-1 transition-transform">
+                            Start AI Interview <span class="material-symbols-outlined">arrow_forward</span>
+                        </span>
+                    </button>
+
+                    <!-- Option 2: Scan Documents -->
+                    <button onclick="navigateTo('document-scan')" class="kiosk-btn group bg-surface-container-lowest hover:border-secondary border-4 border-outline-variant/60 rounded-3xl p-8 flex flex-col items-center text-center shadow-md hover:shadow-2xl transition-all">
+                        <div class="w-28 h-28 rounded-full bg-secondary-fixed group-hover:scale-110 flex items-center justify-center text-secondary mb-6 transition-transform">
+                            <span class="material-symbols-outlined text-[64px] icon-fill">document_scanner</span>
+                        </div>
+                        <h3 class="text-2xl md:text-3xl font-bold text-on-surface mb-3">Scan Documents</h3>
+                        <p class="text-base text-on-surface-variant leading-relaxed">
+                            Scan previous prescriptions, lab reports, discharge summaries or doctor notes with OCR.
+                        </p>
+                        <span class="mt-6 inline-flex items-center gap-2 text-secondary font-bold text-lg group-hover:translate-x-1 transition-transform">
+                            Open Scanner <span class="material-symbols-outlined">arrow_forward</span>
+                        </span>
+                    </button>
+
+                    <!-- Option 3: Choose Healthcare System Direct -->
+                    <button onclick="navigateTo('healthcare-system')" class="kiosk-btn group bg-surface-container-lowest hover:border-outline border-4 border-outline-variant/60 rounded-3xl p-8 flex flex-col items-center text-center shadow-md hover:shadow-2xl transition-all">
+                        <div class="w-28 h-28 rounded-full bg-surface-container group-hover:scale-110 flex items-center justify-center text-on-surface-variant mb-6 transition-transform">
+                            <span class="material-symbols-outlined text-[64px]">medication</span>
+                        </div>
+                        <h3 class="text-2xl md:text-3xl font-bold text-on-surface mb-3">Allopathic vs AYUSH</h3>
+                        <p class="text-base text-on-surface-variant leading-relaxed">
+                            Compare Modern Allopathy or traditional AYUSH (Ayurveda, Homeopathy) medical departments.
+                        </p>
+                        <span class="mt-6 inline-flex items-center gap-2 text-on-surface font-bold text-lg group-hover:translate-x-1 transition-transform">
+                            Select System <span class="material-symbols-outlined">arrow_forward</span>
+                        </span>
+                    </button>
+                </div>
+
+                <!-- Fast review card -->
+                <div class="bg-surface-container-lowest border-2 border-outline-variant rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-[28px]">receipt_long</span>
+                        </div>
+                        <div>
+                            <span class="text-xs uppercase font-bold text-outline">Already completed triage?</span>
+                            <h4 class="text-lg font-bold text-on-surface">Directly view and print your OPD Token</h4>
+                        </div>
+                    </div>
+                    <button onclick="navigateTo('summary')" class="h-12 px-6 rounded-full bg-surface-container hover:bg-surface-variant font-bold text-on-surface flex items-center gap-2">
+                        <span>View OPD Token</span>
+                        <span class="material-symbols-outlined">chevron_right</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ============================================== -->
+        <!-- SCREEN 5: ALLOPATHIC VS AYUSH SELECTION       -->
+        <!-- ============================================== -->
+        <section id="screen-healthcare-system" class="screen-view absolute inset-0 flex flex-col pt-[120px] pb-[100px] px-8 md:px-margin-edge bg-surface overflow-y-auto hidden">
+            <div class="max-w-6xl mx-auto w-full flex-1 flex flex-col justify-between py-6">
+                <!-- Title -->
+                <div class="mb-6">
+                    <h2 class="text-3xl md:text-5xl font-bold text-on-surface mb-2">Select Healthcare System</h2>
+                    <p class="text-xl text-on-surface-variant">Choose your preferred medical methodology for OPD consultation</p>
+                </div>
+
+                <!-- Two Big Comparison Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                    <!-- Modern Allopathy -->
+                    <div id="cardAllopathy" onclick="selectHealthcareSystem('allopathic')" class="kiosk-btn cursor-pointer bg-surface-container-lowest border-4 border-primary rounded-3xl p-8 flex flex-col justify-between shadow-lg relative overflow-hidden group">
+                        <div class="absolute top-4 right-4 bg-primary text-white rounded-full w-10 h-10 flex items-center justify-center" id="badgeAllopathy">
+                            <span class="material-symbols-outlined text-[28px] icon-fill">check</span>
+                        </div>
+                        <div>
+                            <div class="w-20 h-20 rounded-2xl bg-primary-fixed text-primary flex items-center justify-center mb-6">
+                                <span class="material-symbols-outlined text-[48px] icon-fill">stethoscope</span>
+                            </div>
+                            <span class="text-xs uppercase tracking-widest text-primary font-bold">Evidence-Based Medicine</span>
+                            <h3 class="text-3xl font-bold text-on-surface mt-1 mb-3">Allopathic System</h3>
+                            <p class="text-on-surface-variant text-base leading-relaxed mb-6">
+                                Conventional modern medicine including General Medicine, Cardiology, Orthopedics, Pediatrics, ENT, and Surgery. Fast symptom relief and diagnostic imaging.
+                            </p>
+                            <div class="flex flex-wrap gap-2 mb-6">
+                                <span class="bg-surface-container text-on-surface px-3 py-1.5 rounded-lg text-sm font-semibold">General Medicine</span>
+                                <span class="bg-surface-container text-on-surface px-3 py-1.5 rounded-lg text-sm font-semibold">Cardiology</span>
+                                <span class="bg-surface-container text-on-surface px-3 py-1.5 rounded-lg text-sm font-semibold">Orthopedics</span>
+                            </div>
+                        </div>
+                        <div class="h-16 rounded-xl bg-primary text-white font-bold text-lg flex items-center justify-center gap-3">
+                            <span>Select Allopathic / एलोपैथी चुनें</span>
+                            <span class="material-symbols-outlined">arrow_forward</span>
+                        </div>
+                    </div>
+
+                    <!-- Traditional AYUSH -->
+                    <div id="cardAyush" onclick="selectHealthcareSystem('ayush')" class="kiosk-btn cursor-pointer bg-surface-container-lowest border-4 border-outline-variant hover:border-secondary rounded-3xl p-8 flex flex-col justify-between shadow-md relative overflow-hidden group">
+                        <div class="absolute top-4 right-4 bg-secondary text-white rounded-full w-10 h-10 flex items-center justify-center hidden" id="badgeAyush">
+                            <span class="material-symbols-outlined text-[28px] icon-fill">check</span>
+                        </div>
+                        <div>
+                            <div class="w-20 h-20 rounded-2xl bg-secondary-fixed text-secondary flex items-center justify-center mb-6">
+                                <span class="material-symbols-outlined text-[48px] icon-fill">spa</span>
+                            </div>
+                            <span class="text-xs uppercase tracking-widest text-secondary font-bold">Holistic & Traditional Wellness</span>
+                            <h3 class="text-3xl font-bold text-on-surface mt-1 mb-3">AYUSH System</h3>
+                            <p class="text-on-surface-variant text-base leading-relaxed mb-6">
+                                Traditional Indian medicine systems: <strong>A</strong>yurveda, <strong>Y</strong>oga & Naturopathy, <strong>U</strong>nani, <strong>S</strong>iddha, and <strong>H</strong>omeopathy. Focus on chronic conditions & root causes.
+                            </p>
+                            <div class="flex flex-wrap gap-2 mb-6">
+                                <span class="bg-surface-container text-on-surface px-3 py-1.5 rounded-lg text-sm font-semibold">Ayurveda</span>
+                                <span class="bg-surface-container text-on-surface px-3 py-1.5 rounded-lg text-sm font-semibold">Homeopathy</span>
+                                <span class="bg-surface-container text-on-surface px-3 py-1.5 rounded-lg text-sm font-semibold">Yoga & Naturopathy</span>
+                            </div>
+                        </div>
+                        <div class="h-16 rounded-xl bg-secondary text-white font-bold text-lg flex items-center justify-center gap-3">
+                            <span>Select AYUSH / आयुष चुनें</span>
+                            <span class="material-symbols-outlined">arrow_forward</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Nav -->
+                <div class="flex items-center justify-between gap-6 pt-4 border-t-2 border-outline-variant">
+                    <button onclick="navigateTo('home')" class="h-16 px-8 rounded-full bg-surface-container hover:bg-surface-variant text-on-surface text-lg font-bold flex items-center gap-3 active:scale-95 transition-all">
+                        <span class="material-symbols-outlined text-[28px]">arrow_back</span>
+                        <span>Back</span>
+                    </button>
+                    <button onclick="navigateTo('chat')" class="h-16 px-12 rounded-full bg-primary hover:bg-primary-container text-white text-xl font-bold shadow-lg flex items-center gap-3 active:scale-95 transition-all">
+                        <span>Proceed to Symptom Triage</span>
+                        <span class="material-symbols-outlined text-[32px]">arrow_forward</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ============================================== -->
+        <!-- SCREEN 6: AI ASSISTANT CHAT VIEW              -->
+        <!-- ============================================== -->
+        <section id="screen-chat" class="screen-view absolute inset-0 flex flex-col pt-[120px] pb-[100px] px-8 md:px-margin-edge bg-surface overflow-hidden hidden">
+            <div class="max-w-6xl mx-auto w-full flex-1 flex flex-col justify-between py-4 h-full">
+                <!-- Chat View Mode Header -->
+                <div class="flex items-center justify-between bg-surface-container-lowest p-4 rounded-2xl border-2 border-outline-variant shadow-sm mb-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-14 h-14 rounded-full bg-primary-fixed text-primary flex items-center justify-center">
+                            <span class="material-symbols-outlined text-[36px] icon-fill">smart_toy</span>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-on-surface">AI Clinical Assistant</h3>
+                            <p class="text-xs text-on-surface-variant font-semibold">Interactive Symptom Interview & Dept Matching</p>
+                        </div>
+                    </div>
+
+                    <!-- Switch Input Mode Pills -->
+                    <div class="flex items-center gap-2 bg-surface-container p-1.5 rounded-full border border-outline-variant">
+                        <button onclick="navigateTo('chat')" class="px-5 py-2 rounded-full bg-primary text-white text-sm font-bold flex items-center gap-2 shadow-sm">
+                            <span class="material-symbols-outlined text-[20px]">chat</span>
+                            <span>Chat</span>
+                        </button>
+                        <button onclick="navigateTo('voice')" class="px-5 py-2 rounded-full text-on-surface-variant hover:text-on-surface text-sm font-bold flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[20px]">mic</span>
+                            <span>Voice</span>
+                        </button>
+                        <button onclick="navigateTo('keyboard')" class="px-5 py-2 rounded-full text-on-surface-variant hover:text-on-surface text-sm font-bold flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[20px]">keyboard</span>
+                            <span>Keyboard</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Chat Messages Scroll Area -->
+                <div id="chatMessages" class="flex-1 overflow-y-auto pr-2 flex flex-col gap-4 mb-4">
+                    <!-- Message 1 (AI) -->
+                    <div class="flex items-start gap-4 max-w-3xl">
+                        <div class="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center shrink-0 mt-1">
+                            <span class="material-symbols-outlined text-[24px]">local_hospital</span>
+                        </div>
+                        <div class="bg-surface-container-lowest border-2 border-outline-variant p-5 rounded-2xl rounded-tl-none shadow-sm">
+                            <p class="text-lg text-on-surface leading-relaxed">
+                                Namaste Aarav. I am your AI Health Assistant. Please tell me what primary discomfort or symptoms you are experiencing today.
+                            </p>
+                            <span class="text-xs text-outline block mt-2 font-medium">AI Triage Bot • Just now</span>
+                        </div>
+                    </div>
+
+                    <!-- Message 2 (User) -->
+                    <div class="flex items-start justify-end gap-4 max-w-3xl ml-auto">
+                        <div class="bg-primary text-white p-5 rounded-2xl rounded-tr-none shadow-md">
+                            <p class="text-lg leading-relaxed">
+                                I have had a high fever and mild cough for the past 2 days with body ache.
+                            </p>
+                            <span class="text-xs text-primary-fixed-dim block mt-2 text-right">You • Just now</span>
+                        </div>
+                    </div>
+
+                    <!-- Message 3 (AI) -->
+                    <div class="flex items-start gap-4 max-w-3xl">
+                        <div class="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center shrink-0 mt-1">
+                            <span class="material-symbols-outlined text-[24px]">local_hospital</span>
+                        </div>
+                        <div class="bg-surface-container-lowest border-2 border-outline-variant p-5 rounded-2xl rounded-tl-none shadow-sm">
+                            <p class="text-lg text-on-surface leading-relaxed">
+                                Thank you for sharing. Have you noticed any breathing difficulty, chills, or headache along with this fever?
+                            </p>
+                            <span class="text-xs text-outline block mt-2 font-medium">AI Triage Bot • Just now</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Suggested Symptom Chips -->
+                <div class="flex flex-wrap items-center gap-3 mb-4">
+                    <span class="text-xs uppercase font-bold text-outline">Quick Replies:</span>
+                    <button onclick="sendQuickReply('Mild headache with chills')" class="bg-surface-container hover:bg-primary hover:text-white px-4 py-2 rounded-full text-sm font-semibold border border-outline-variant transition-all">
+                        Mild headache with chills
+                    </button>
+                    <button onclick="sendQuickReply('No breathing difficulty')" class="bg-surface-container hover:bg-primary hover:text-white px-4 py-2 rounded-full text-sm font-semibold border border-outline-variant transition-all">
+                        No breathing difficulty
+                    </button>
+                    <button onclick="sendQuickReply('Sore throat & fatigue')" class="bg-surface-container hover:bg-primary hover:text-white px-4 py-2 rounded-full text-sm font-semibold border border-outline-variant transition-all">
+                        Sore throat & fatigue
+                    </button>
+                </div>
+
+                <!-- Chat Input Strip -->
+                <div class="flex items-center gap-3 bg-surface-container-lowest border-2 border-outline-variant rounded-2xl p-3 shadow-md mb-2">
+                    <button onclick="navigateTo('voice')" class="w-14 h-14 rounded-xl bg-secondary-container text-secondary flex items-center justify-center hover:bg-secondary hover:text-white transition-all" title="Speak">
+                        <span class="material-symbols-outlined text-[32px]">mic</span>
+                    </button>
+                    <input type="text" id="chatInputText" placeholder="Type or tap quick replies above..." class="flex-1 text-lg font-medium bg-transparent border-none outline-none px-2" onkeypress="if(event.key === 'Enter') sendChatMessage()">
+                    <button onclick="sendChatMessage()" class="h-14 px-8 rounded-xl bg-primary hover:bg-primary-container text-white font-bold flex items-center gap-2 shadow-md">
+                        <span>Send</span>
+                        <span class="material-symbols-outlined text-[24px]">send</span>
+                    </button>
+                </div>
+
+                <!-- Bottom Proceed Strip -->
+                <div class="flex items-center justify-between pt-2">
+                    <button onclick="navigateTo('healthcare-system')" class="text-on-surface-variant font-bold flex items-center gap-2 hover:text-on-surface">
+                        <span class="material-symbols-outlined">arrow_back</span> Back
+                    </button>
+                    <button onclick="navigateTo('summary')" class="h-14 px-8 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-3 shadow-md">
+                        <span>Complete Interview & Review</span>
+                        <span class="material-symbols-outlined">check_circle</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ============================================== -->
+        <!-- SCREEN 7: AI INTERVIEW KEYBOARD VIEW          -->
+        <!-- ============================================== -->
+        <section id="screen-keyboard" class="screen-view absolute inset-0 flex flex-col pt-[120px] pb-[100px] px-8 md:px-margin-edge bg-surface overflow-hidden hidden">
+            <div class="max-w-6xl mx-auto w-full flex-1 flex flex-col justify-between py-4 h-full">
+                <!-- Top prompt & switch -->
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-on-surface">On-Screen Keyboard Entry</h2>
+                        <p class="text-base text-on-surface-variant">Type additional symptoms or medical history details</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="navigateTo('chat')" class="px-5 py-2.5 rounded-full bg-surface-container hover:bg-surface-variant font-bold text-sm flex items-center gap-2">
+                            <span class="material-symbols-outlined">chat</span> Chat View
+                        </button>
+                        <button onclick="navigateTo('voice')" class="px-5 py-2.5 rounded-full bg-surface-container hover:bg-surface-variant font-bold text-sm flex items-center gap-2">
+                            <span class="material-symbols-outlined">mic</span> Voice View
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Large Text Field Display -->
+                <div class="bg-surface-container-lowest border-4 border-primary rounded-2xl p-6 shadow-md mb-6 min-h-[140px] flex flex-col justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-primary">Your Symptom Notes</span>
+                    <p id="keyboardTextDisplay" class="text-2xl md:text-3xl font-medium text-on-surface tracking-normal min-h-[60px]">
+                        Fever, Cough, Headache
+                    </p>
+                    <span class="text-xs text-outline text-right">Tap keys below to add or edit text</span>
+                </div>
+
+                <!-- Full Touch Keyboard (QWERTY) -->
+                <div class="bg-surface-container-lowest border-2 border-outline-variant rounded-3xl p-6 shadow-lg mb-4 flex flex-col gap-3">
+                    <!-- Row 1: Numbers -->
+                    <div class="flex gap-2 justify-center">
+                        <button onclick="keyPress('1')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">1</button>
+                        <button onclick="keyPress('2')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">2</button>
+                        <button onclick="keyPress('3')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">3</button>
+                        <button onclick="keyPress('4')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">4</button>
+                        <button onclick="keyPress('5')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">5</button>
+                        <button onclick="keyPress('6')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">6</button>
+                        <button onclick="keyPress('7')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">7</button>
+                        <button onclick="keyPress('8')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">8</button>
+                        <button onclick="keyPress('9')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">9</button>
+                        <button onclick="keyPress('0')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">0</button>
+                    </div>
+
+                    <!-- Row 2: QWERTY -->
+                    <div class="flex gap-2 justify-center">
+                        <button onclick="keyPress('Q')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">Q</button>
+                        <button onclick="keyPress('W')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">W</button>
+                        <button onclick="keyPress('E')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">E</button>
+                        <button onclick="keyPress('R')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">R</button>
+                        <button onclick="keyPress('T')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">T</button>
+                        <button onclick="keyPress('Y')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">Y</button>
+                        <button onclick="keyPress('U')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">U</button>
+                        <button onclick="keyPress('I')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">I</button>
+                        <button onclick="keyPress('O')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">O</button>
+                        <button onclick="keyPress('P')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">P</button>
+                    </div>
+
+                    <!-- Row 3: ASDF -->
+                    <div class="flex gap-2 justify-center px-4">
+                        <button onclick="keyPress('A')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">A</button>
+                        <button onclick="keyPress('S')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">S</button>
+                        <button onclick="keyPress('D')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">D</button>
+                        <button onclick="keyPress('F')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">F</button>
+                        <button onclick="keyPress('G')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">G</button>
+                        <button onclick="keyPress('H')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">H</button>
+                        <button onclick="keyPress('J')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">J</button>
+                        <button onclick="keyPress('K')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">K</button>
+                        <button onclick="keyPress('L')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">L</button>
+                    </div>
+
+                    <!-- Row 4: ZXCV + Backspace -->
+                    <div class="flex gap-2 justify-center">
+                        <button onclick="keyPress('Z')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">Z</button>
+                        <button onclick="keyPress('X')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">X</button>
+                        <button onclick="keyPress('C')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">C</button>
+                        <button onclick="keyPress('V')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">V</button>
+                        <button onclick="keyPress('B')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">B</button>
+                        <button onclick="keyPress('N')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">N</button>
+                        <button onclick="keyPress('M')" class="kiosk-btn key h-16 flex-1 bg-surface-container-low rounded-xl font-bold text-xl">M</button>
+                        <button onclick="keyBackspace()" class="kiosk-btn key h-16 flex-1 bg-error/10 text-error rounded-xl font-bold text-lg flex items-center justify-center">
+                            <span class="material-symbols-outlined text-[28px]">backspace</span>
+                        </button>
+                    </div>
+
+                    <!-- Row 5: Space & Done -->
+                    <div class="flex gap-2 justify-center">
+                        <button onclick="keyClear()" class="kiosk-btn key h-16 px-6 bg-surface-container rounded-xl font-bold text-sm">Clear All</button>
+                        <button onclick="keyPress(' ')" class="kiosk-btn key h-16 flex-[3] bg-surface-container-low rounded-xl font-bold text-base tracking-widest uppercase">Space</button>
+                        <button onclick="keySubmit()" class="kiosk-btn key h-16 px-10 bg-primary text-white rounded-xl font-bold text-lg flex items-center gap-2">
+                            <span>Add to Triage</span>
+                            <span class="material-symbols-outlined">check</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Footer Nav -->
+                <div class="flex items-center justify-between pt-2">
+                    <button onclick="navigateTo('chat')" class="h-14 px-8 rounded-full bg-surface-container text-on-surface font-bold flex items-center gap-2">
+                        <span class="material-symbols-outlined">arrow_back</span>
+                        <span>Back to Chat</span>
+                    </button>
+                    <button onclick="navigateTo('summary')" class="h-14 px-10 rounded-full bg-primary text-white font-bold flex items-center gap-3">
+                        <span>Proceed to Summary</span>
+                        <span class="material-symbols-outlined">arrow_forward</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ============================================== -->
+        <!-- SCREEN 8: AI INTERVIEW VOICE VIEW             -->
+        <!-- ============================================== -->
+        <section id="screen-voice" class="screen-view absolute inset-0 flex flex-col pt-[120px] pb-[100px] px-8 md:px-margin-edge bg-surface overflow-hidden hidden">
+            <div class="max-w-5xl mx-auto w-full flex-1 flex flex-col justify-between items-center py-6 text-center">
+                <!-- Status Header -->
+                <div>
+                    <span class="bg-secondary-fixed text-on-secondary-fixed px-6 py-2.5 rounded-full text-base font-bold inline-flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-secondary animate-ping"></span>
+                        <span id="voiceStatusBadge">AI Doctor Listening...</span>
+                    </span>
+                    <h2 class="text-3xl md:text-5xl font-bold text-on-surface mt-4 mb-2">Speak Your Symptoms Freely</h2>
+                    <p class="text-lg text-on-surface-variant">Talk in English, Hindi, or your preferred language</p>
+                </div>
+
+                <!-- Central Pulsating Voice Orb -->
+                <div class="relative my-8 flex items-center justify-center">
+                    <div class="w-72 h-72 rounded-full border-4 border-secondary/20 voice-wave absolute"></div>
+                    <div class="w-56 h-56 rounded-full border-4 border-secondary/40 voice-wave absolute" style="animation-delay: 0.6s;"></div>
+                    <div onclick="toggleVoiceListening()" class="cursor-pointer relative z-10 w-44 h-44 rounded-full bg-gradient-to-tr from-secondary to-[#8cf3f3] text-white flex flex-col items-center justify-center shadow-2xl active-ring active:scale-95 transition-all">
+                        <span class="material-symbols-outlined text-[68px] icon-fill" id="voiceOrbIcon">mic</span>
+                        <span class="text-xs uppercase font-bold tracking-widest mt-1" id="voiceOrbLabel">Listening</span>
+                    </div>
+                </div>
+
+                <!-- Spoken Transcript Box -->
+                <div class="w-full max-w-3xl bg-surface-container-lowest border-2 border-outline-variant rounded-3xl p-6 shadow-md mb-4 text-left">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-secondary">Live Speech-to-Text Recognition</span>
+                        <span class="text-xs text-outline">Confidence: 98%</span>
+                    </div>
+                    <p id="voiceLiveTranscript" class="text-2xl font-semibold text-on-surface leading-relaxed">
+                        "Doctor, I have had a continuous fever for two days with severe body ache and mild dry cough."
+                    </p>
+                </div>
+
+                <!-- Mode switcher and Continue buttons -->
+                <div class="flex flex-wrap items-center justify-center gap-4 w-full">
+                    <button onclick="navigateTo('chat')" class="h-16 px-8 rounded-full bg-surface-container hover:bg-surface-variant text-on-surface font-bold text-lg flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[28px]">chat</span>
+                        <span>Switch to Chat</span>
+                    </button>
+                    <button onclick="navigateTo('keyboard')" class="h-16 px-8 rounded-full bg-surface-container hover:bg-surface-variant text-on-surface font-bold text-lg flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[28px]">keyboard</span>
+                        <span>Use Keyboard</span>
+                    </button>
+                    <button onclick="navigateTo('summary')" class="h-16 px-12 rounded-full bg-primary hover:bg-primary-container text-white font-bold text-xl shadow-lg flex items-center gap-3">
+                        <span>Save & Review</span>
+                        <span class="material-symbols-outlined text-[32px]">arrow_forward</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ============================================== -->
+        <!-- SCREEN 9: DOCUMENT SCAN VIEW                  -->
+        <!-- ============================================== -->
+        <section id="screen-document-scan" class="screen-view absolute inset-0 flex flex-col pt-[120px] pb-[100px] px-8 md:px-margin-edge bg-surface overflow-y-auto hidden">
+            <div class="max-w-6xl mx-auto w-full flex-1 flex flex-col justify-between py-6">
+                <!-- Header -->
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
+                    <div>
+                        <h2 class="text-3xl md:text-5xl font-bold text-on-surface mb-2">Scan Medical Documents</h2>
+                        <p class="text-xl text-on-surface-variant">Place previous prescriptions, lab reports, or ABHA card on the scanner glass</p>
+                    </div>
+                    <div class="flex items-center gap-3 bg-primary-fixed/50 text-primary px-5 py-2.5 rounded-full border border-primary">
+                        <span class="material-symbols-outlined text-[28px] icon-fill">document_scanner</span>
+                        <span class="font-bold text-sm">Optical OCR Engine Ready</span>
+                    </div>
+                </div>
+
+                <!-- Scanning Glass Viewport -->
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch mb-6">
+                    <!-- Scanner Preview with Laser -->
+                    <div class="md:col-span-7 bg-surface-container-highest border-4 border-dashed border-outline rounded-3xl p-6 relative overflow-hidden flex flex-col items-center justify-center min-h-[380px] shadow-inner">
+                        <!-- Laser Scan Line -->
+                        <div class="laser-scan"></div>
+
+                        <!-- Mock Document Paper inside -->
+                        <div class="w-full max-w-md bg-white border-2 border-outline-variant rounded-xl p-6 shadow-xl relative z-10 text-on-surface">
+                            <div class="flex justify-between items-center border-b pb-3 mb-3">
+                                <div>
+                                    <h4 class="font-bold text-primary text-lg">Apollo Clinic Report</h4>
+                                    <span class="text-xs text-outline">Date: 25-Oct-2026 • Dr. R. Sen</span>
+                                </div>
+                                <span class="material-symbols-outlined text-secondary text-[36px]">receipt</span>
+                            </div>
+                            <div class="text-xs space-y-2 text-on-surface-variant">
+                                <p><strong>Patient:</strong> Aarav Sharma (32 / M)</p>
+                                <p><strong>Diagnosis:</strong> Acute Upper Respiratory Tract Infection (URTI)</p>
+                                <p><strong>Prescription:</strong> Paracetamol 650mg, Cetirizine 10mg</p>
+                                <p><strong>Follow-up:</strong> Review after 4 days if temperature persists</p>
+                            </div>
+                            <div class="mt-4 pt-3 border-t flex justify-between items-center text-xs text-emerald-600 font-bold">
+                                <span>OCR Status: 100% Extracted</span>
+                                <span class="material-symbols-outlined text-[20px]">check_circle</span>
+                            </div>
+                        </div>
+
+                        <!-- Corner Guides -->
+                        <div class="absolute top-4 left-4 w-8 h-8 border-t-4 border-l-4 border-primary"></div>
+                        <div class="absolute top-4 right-4 w-8 h-8 border-t-4 border-r-4 border-primary"></div>
+                        <div class="absolute bottom-4 left-4 w-8 h-8 border-b-4 border-l-4 border-primary"></div>
+                        <div class="absolute bottom-4 right-4 w-8 h-8 border-b-4 border-r-4 border-primary"></div>
+                    </div>
+
+                    <!-- Right Side: Extracted Data Card -->
+                    <div class="md:col-span-5 bg-surface-container-lowest border-2 border-outline-variant rounded-3xl p-6 flex flex-col justify-between shadow-md">
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-secondary">AI Document Analysis</span>
+                            <h3 class="text-2xl font-bold text-on-surface mt-1 mb-4">Extracted Medical History</h3>
+
+                            <div class="space-y-4">
+                                <div class="bg-surface-container p-4 rounded-xl">
+                                    <span class="text-xs text-outline block">Document Type</span>
+                                    <span class="text-lg font-bold text-on-surface">Previous OPD Prescription</span>
+                                </div>
+                                <div class="bg-surface-container p-4 rounded-xl">
+                                    <span class="text-xs text-outline block">Past Clinical Findings</span>
+                                    <span class="text-base font-semibold text-on-surface">Acute URTI, Seasonal Bronchial Allergy</span>
+                                </div>
+                                <div class="bg-surface-container p-4 rounded-xl">
+                                    <span class="text-xs text-outline block">Attached to Today's Visit</span>
+                                    <span class="text-base font-semibold text-emerald-700 flex items-center gap-2">
+                                        <span class="material-symbols-outlined text-[20px]">task_alt</span>
+                                        Synced to EMR File #98124
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3 mt-6">
+                            <button onclick="rescanDocument()" class="flex-1 py-4 bg-surface-container hover:bg-surface-variant text-on-surface font-bold rounded-xl text-center">
+                                Re-scan Page
+                            </button>
+                            <button onclick="confirmDocumentScan()" class="flex-1 py-4 bg-secondary hover:bg-secondary-container text-white hover:text-on-secondary-container font-bold rounded-xl text-center shadow-md">
+                                Confirm & Attach
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Nav -->
+                <div class="flex items-center justify-between gap-6 pt-4 border-t-2 border-outline-variant">
+                    <button onclick="navigateTo('home')" class="h-16 px-8 rounded-full bg-surface-container hover:bg-surface-variant text-on-surface text-lg font-bold flex items-center gap-3">
+                        <span class="material-symbols-outlined text-[28px]">arrow_back</span>
+                        <span>Back</span>
+                    </button>
+                    <button onclick="navigateTo('summary')" class="h-16 px-12 rounded-full bg-primary hover:bg-primary-container text-white text-xl font-bold shadow-lg flex items-center gap-3">
+                        <span>Proceed to Final Review</span>
+                        <span class="material-symbols-outlined text-[32px]">arrow_forward</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ============================================== -->
+        <!-- SCREEN 10: SUMMARY REVIEW & PRINT SLIP        -->
+        <!-- ============================================== -->
+        <section id="screen-summary" class="screen-view absolute inset-0 flex flex-col pt-[120px] pb-[100px] px-8 md:px-margin-edge bg-surface overflow-y-auto hidden">
+            <div class="max-w-5xl mx-auto w-full flex-1 flex flex-col justify-between py-6">
+                <!-- Title -->
+                <div class="mb-6">
+                    <span class="bg-emerald-100 text-emerald-800 px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wider inline-block mb-2">Triage & Registration Complete</span>
+                    <h2 class="text-3xl md:text-5xl font-bold text-on-surface mb-2">Review Your OPD Details</h2>
+                    <p class="text-xl text-on-surface-variant">Please confirm your details before generating and printing your OPD consultation slip</p>
+                </div>
+
+                <!-- Summary Cards Stack -->
+                <div class="space-y-6 mb-8">
+                    <!-- Patient ID & Basic Info -->
+                    <div class="bg-surface-container-lowest border-2 border-outline-variant rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+                        <div class="flex items-center gap-5">
+                            <div class="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center text-2xl font-bold">
+                                AS
+                            </div>
+                            <div>
+                                <span class="text-xs font-bold uppercase text-outline">Patient Profile</span>
+                                <h3 class="text-2xl font-bold text-on-surface" id="summaryPatientName">Aarav Sharma</h3>
+                                <p class="text-sm text-on-surface-variant">Mobile: <strong id="summaryPatientPhone">+91 98765 43210</strong> • Age: 32 • UHID: 2026-98124</p>
+                            </div>
+                        </div>
+                        <button onclick="navigateTo('login')" class="px-5 py-2.5 rounded-full bg-surface-container hover:bg-surface-variant text-primary font-bold text-sm flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[20px]">edit</span> Edit
+                        </button>
+                    </div>
+
+                    <!-- Selected Symptoms & Healthcare System -->
+                    <div class="bg-surface-container-lowest border-2 border-outline-variant rounded-2xl p-6 shadow-sm">
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-xs font-bold uppercase text-outline">Reported Symptoms & Methodology</span>
+                            <button onclick="navigateTo('chat')" class="text-primary text-sm font-bold flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[18px]">edit</span> Modify
+                            </button>
+                        </div>
+                        <div class="flex flex-wrap gap-3 mb-4" id="summarySymptomsTags">
+                            <span class="bg-secondary-container text-on-secondary-container px-5 py-2 rounded-full text-base font-semibold flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[20px]">thermostat</span> High Fever (101°F)
+                            </span>
+                            <span class="bg-secondary-container text-on-secondary-container px-5 py-2 rounded-full text-base font-semibold flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[20px]">sick</span> Body Ache & Chills
+                            </span>
+                            <span class="bg-secondary-container text-on-secondary-container px-5 py-2 rounded-full text-base font-semibold flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[20px]">pulmonology</span> Mild Cough
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-3 text-sm text-on-surface-variant">
+                            <span class="material-symbols-outlined text-primary">verified</span>
+                            <span>Healthcare Selection: <strong class="text-on-surface" id="summarySystemText">Allopathic (General Medicine)</strong></span>
+                        </div>
+                    </div>
+
+                    <!-- Recommended OPD Clinic Assignment -->
+                    <div class="bg-gradient-to-r from-primary-fixed to-surface-container-lowest border-4 border-primary rounded-2xl p-6 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                            <span class="text-xs font-bold uppercase text-primary tracking-widest">Recommended OPD Department</span>
+                            <h3 class="text-3xl font-bold text-on-surface mt-1">General Medicine OPD • Counter 04</h3>
+                            <p class="text-base text-on-surface-variant mt-1">Consultant: <strong>Dr. Priya Menon, MD</strong> • Estimated Wait: ~12 Mins</p>
+                        </div>
+                        <div class="bg-white px-6 py-4 rounded-xl border-2 border-primary text-center">
+                            <span class="text-xs uppercase text-outline font-bold">Your Token Number</span>
+                            <div class="text-4xl font-extrabold text-primary tracking-wider" id="summaryTokenNumber">T-142</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Print Action Buttons -->
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-6 pt-4 border-t-2 border-outline-variant">
+                    <button onclick="navigateTo('chat')" class="h-16 px-8 rounded-full bg-surface-container hover:bg-surface-variant text-on-surface text-lg font-bold flex items-center gap-3 w-full sm:w-auto justify-center">
+                        <span class="material-symbols-outlined text-[28px]">arrow_back</span>
+                        <span>Back</span>
+                    </button>
+                    <button onclick="printOPDSlip()" class="h-20 px-14 rounded-full bg-primary hover:bg-primary-container text-white text-2xl font-bold shadow-2xl flex items-center gap-4 active:scale-95 transition-all w-full sm:w-auto justify-center">
+                        <span class="material-symbols-outlined text-[36px] icon-fill">print</span>
+                        <span>Print OPD Slip & Token / पर्ची प्रिंट करें</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Persistent Bottom Privacy & Security Footer -->
+    <footer id="globalFooter" class="fixed bottom-0 left-0 w-full z-[60] bg-surface-container-lowest border-t-2 border-outline-variant px-8 md:px-margin-edge py-3 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-on-surface-variant">
+        <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-secondary text-[24px]">lock</span>
+            <span>Hospital Safe Touch Console • Session clears in <strong id="sessionCountdown" class="text-primary font-bold">60</strong>s of inactivity</span>
+        </div>
+        <div class="flex items-center gap-4">
+            <button onclick="toggleDevBar()" class="text-primary font-bold hover:underline flex items-center gap-1">
+                <span class="material-symbols-outlined text-[18px]">view_carousel</span>
+                <span>Switch Any Screen (10 Views)</span>
+            </button>
+            <span class="text-outline">|</span>
+            <button onclick="toggleFullScreen()" class="hover:text-on-surface flex items-center gap-1 font-semibold">
+                <span class="material-symbols-outlined text-[18px]">fullscreen</span>
+                <span>Kiosk Mode</span>
+            </button>
+        </div>
+    </footer>
+
+    <!-- ============================================== -->
+    <!-- MODALS: SOS Staff Alert                       -->
+    <!-- ============================================== -->
+    <div id="sosModal" class="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6 hidden">
+        <div class="bg-surface-container-lowest max-w-lg w-full rounded-3xl p-8 border-4 border-error shadow-2xl text-center">
+            <div class="w-24 h-24 rounded-full bg-error text-white flex items-center justify-center mx-auto mb-6 active-ring">
+                <span class="material-symbols-outlined text-[64px] icon-fill">emergency</span>
+            </div>
+            <h3 class="text-3xl font-bold text-error mb-2">Hospital Staff Alerted!</h3>
+            <p class="text-lg text-on-surface mb-6">
+                An OPD nurse or staff member has been notified and is coming to assist you at Kiosk #102.
+            </p>
+            <div class="bg-surface-container p-4 rounded-2xl mb-6 text-sm text-on-surface-variant font-medium">
+                If this is an acute cardiac or trauma emergency, please proceed immediately to the Emergency Room (ER) Ground Floor Block A.
+            </div>
+            <button onclick="closeSosModal()" class="h-16 w-full rounded-full bg-on-surface hover:bg-black text-white font-bold text-lg">
+                Dismiss / I am okay now
+            </button>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- MODALS: Language Switcher                      -->
+    <!-- ============================================== -->
+    <div id="langModal" class="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6 hidden">
+        <div class="bg-surface-container-lowest max-w-2xl w-full rounded-3xl p-8 border-2 border-outline-variant shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 class="text-2xl font-bold text-on-surface">Change Language</h3>
+                    <p class="text-sm text-on-surface-variant">Choose language for voice and display</p>
+                </div>
+                <button onclick="closeLanguageModal()" class="w-12 h-12 rounded-full hover:bg-surface-variant flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[28px]">close</span>
+                </button>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6" id="langModalGrid">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- MODALS: Print OPD Slip Simulation              -->
+    <!-- ============================================== -->
+    <div id="printModal" class="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6 hidden">
+        <div class="bg-white text-black max-w-md w-full rounded-2xl p-8 border-2 border-gray-300 shadow-2xl relative text-left" id="printTicketArea">
+            <div class="text-center border-b-2 border-dashed border-gray-400 pb-4 mb-4">
+                <h2 class="text-2xl font-bold tracking-tight">CITY CARE MEMORIAL HOSPITAL</h2>
+                <p class="text-xs text-gray-600">OPD CONSULTATION TOKEN SLIP</p>
+                <div class="mt-3 inline-block bg-black text-white px-6 py-2 rounded-lg text-3xl font-extrabold tracking-widest">
+                    TOKEN # T-142
+                </div>
+            </div>
+
+            <div class="text-sm space-y-2 mb-6">
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Date & Time:</span>
+                    <span class="font-bold">29-Oct-2026, 10:15 AM</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Patient Name:</span>
+                    <span class="font-bold" id="slipPatientName">Aarav Sharma</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Patient ID:</span>
+                    <span class="font-bold">PID-9876-5432</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Assigned Department:</span>
+                    <span class="font-bold text-blue-800" id="slipDepartment">General Medicine OPD</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Consultant:</span>
+                    <span class="font-bold">Dr. Priya Menon (Room 204)</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Reported Symptoms:</span>
+                    <span class="font-bold">Fever, Body Ache, Cough</span>
+                </div>
+            </div>
+
+            <div class="text-center border-t-2 border-dashed border-gray-400 pt-4">
+                <div class="w-32 h-32 mx-auto bg-gray-100 border-2 border-gray-300 flex items-center justify-center text-xs font-mono text-gray-500 mb-2">
+                    [ QR TOKEN CODE ]
+                </div>
+                <p class="text-xs text-gray-500">Please wait at Waiting Lounge B until Token T-142 is called.</p>
+            </div>
+
+            <div class="mt-6 flex gap-3 print:hidden">
+                <button onclick="window.print()" class="flex-1 py-3 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-xl text-center">
+                    Print Now
+                </button>
+                <button onclick="finishAndResetKiosk()" class="flex-1 py-3 bg-gray-200 hover:bg-gray-300 text-black font-bold rounded-xl text-center">
+                    Done / Reset Kiosk
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- KIOSK DEV SCREEN SWITCHER DRAWER (10 SCREENS)  -->
+    <!-- ============================================== -->
+    <div id="devScreenBar" class="fixed bottom-12 left-1/2 -translate-x-1/2 z-[80] bg-on-surface/95 text-white backdrop-blur-md px-6 py-3 rounded-full shadow-2xl border border-white/20 flex items-center gap-3 overflow-x-auto max-w-[95vw] hidden">
+        <span class="text-xs font-bold uppercase tracking-wider text-secondary-fixed shrink-0">Screens:</span>
+        <button onclick="navigateTo('idle')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/25 shrink-0">1. Idle</button>
+        <button onclick="navigateTo('language')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/25 shrink-0">2. Language</button>
+        <button onclick="navigateTo('login')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/25 shrink-0">3. Login</button>
+        <button onclick="navigateTo('home')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/25 shrink-0">4. Home</button>
+        <button onclick="navigateTo('healthcare-system')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/25 shrink-0">5. Allopathy/AYUSH</button>
+        <button onclick="navigateTo('chat')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/25 shrink-0">6. AI Chat</button>
+        <button onclick="navigateTo('keyboard')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/25 shrink-0">7. Keyboard</button>
+        <button onclick="navigateTo('voice')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/25 shrink-0">8. Voice</button>
+        <button onclick="navigateTo('document-scan')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/25 shrink-0">9. Scan Doc</button>
+        <button onclick="navigateTo('summary')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/25 shrink-0">10. Summary</button>
+        <button onclick="toggleDevBar()" class="w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-[18px]">close</span>
+        </button>
+    </div>
+
+    <!-- JavaScript Controller -->
+    <script src="app.js"></script>
+</body>
+</html>
+

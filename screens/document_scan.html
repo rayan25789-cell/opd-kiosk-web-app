@@ -1,0 +1,219 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>OPD Kiosk - Document Scan</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Theme Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-on-surface": "#f0f0f3",
+                        "error-container": "#ffdad6",
+                        "on-tertiary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "surface-bright": "#f9f9fc",
+                        "on-tertiary-fixed-variant": "#40484e",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "secondary-fixed": "#8cf3f3",
+                        "tertiary-fixed": "#dce3eb",
+                        "surface-tint": "#004dea",
+                        "tertiary-container": "#616970",
+                        "on-primary-container": "#e3e6ff",
+                        "outline-variant": "#c3c5d9",
+                        "secondary": "#006a6a",
+                        "primary-fixed-dim": "#b6c4ff",
+                        "background": "#f9f9fc",
+                        "on-primary-fixed": "#001551",
+                        "on-tertiary-container": "#e2e9f0",
+                        "on-error": "#ffffff",
+                        "primary-container": "#0055ff",
+                        "on-surface": "#1a1c1e",
+                        "primary-fixed": "#dce1ff",
+                        "outline": "#737688",
+                        "inverse-primary": "#b6c4ff",
+                        "error": "#ba1a1a",
+                        "inverse-surface": "#2f3133",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-container": "#007070",
+                        "tertiary": "#495157",
+                        "surface-variant": "#e2e2e5",
+                        "surface-container-highest": "#e2e2e5",
+                        "surface": "#f9f9fc",
+                        "secondary-container": "#8cf3f3",
+                        "on-primary-fixed-variant": "#0039b3",
+                        "tertiary-fixed-dim": "#c0c7cf",
+                        "surface-container-high": "#e8e8ea",
+                        "on-secondary-fixed": "#002020",
+                        "on-surface-variant": "#434656",
+                        "surface-container-low": "#f3f3f6",
+                        "on-background": "#1a1c1e",
+                        "surface-container": "#eeeef0",
+                        "secondary-fixed-dim": "#6fd7d6",
+                        "on-secondary-fixed-variant": "#004f4f",
+                        "on-tertiary-fixed": "#151c22",
+                        "primary": "#0041c8",
+                        "surface-dim": "#dadadc"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "32px",
+                        "stack-gap": "24px",
+                        "section-gap": "80px",
+                        "touch-target-min": "80px",
+                        "margin-edge": "64px"
+                    },
+                    "fontFamily": {
+                        "label-lg": ["Sora", "sans-serif"],
+                        "button-text": ["Sora", "sans-serif"],
+                        "headline-md": ["Sora", "sans-serif"],
+                        "display-lg": ["Sora", "sans-serif"],
+                        "body-lg": ["Sora", "sans-serif"],
+                        "body-md": ["Sora", "sans-serif"],
+                        "headline-lg": ["Sora", "sans-serif"]
+                    },
+                    "fontSize": {
+                        "label-lg": ["24px", { "lineHeight": "30px", "fontWeight": "600" }],
+                        "button-text": ["28px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "headline-md": ["36px", { "lineHeight": "44px", "fontWeight": "600" }],
+                        "display-lg": ["72px", { "lineHeight": "88px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["28px", { "lineHeight": "40px", "fontWeight": "400" }],
+                        "body-md": ["22px", { "lineHeight": "32px", "fontWeight": "400" }],
+                        "headline-lg": ["48px", { "lineHeight": "60px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        /* Typography overrides to ensure font loading */
+        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&display=swap');
+        
+        body {
+            font-family: 'Sora', sans-serif;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        /* Material Icons Specific Styling */
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 48;
+        }
+
+        .icon-fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400;
+        }
+
+        /* Scanning Line Animation */
+        @keyframes scan {
+            0% { top: 0%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+        .scan-line {
+            position: absolute;
+            width: 100%;
+            height: 4px;
+            background: theme('colors.primary');
+            box-shadow: 0 0 20px 5px theme('colors.primary-fixed-dim');
+            animation: scan 3s linear infinite;
+        }
+        
+        /* Spin Animation for Status */
+        @keyframes slow-spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-slow-spin {
+            animation: slow-spin 3s linear infinite;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface h-screen w-screen overflow-hidden flex flex-col antialiased">
+<!-- TopAppBar Shared Component -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-margin-edge h-[120px] bg-surface border-b-2 border-outline-variant">
+<div class="text-headline-md font-headline-md font-bold text-primary">OPD Kiosk</div>
+<div class="flex items-center gap-stack-gap">
+<button aria-label="Home" class="w-touch-target-min h-touch-target-min flex items-center justify-center rounded-full text-primary hover:bg-surface-variant active:scale-95 transition-transform duration-150">
+<span class="material-symbols-outlined text-[40px]">home</span>
+</button>
+<button aria-label="Translate" class="w-touch-target-min h-touch-target-min flex items-center justify-center rounded-full text-primary hover:bg-surface-variant active:scale-95 transition-transform duration-150">
+<span class="material-symbols-outlined text-[40px]">translate</span>
+</button>
+<button class="h-touch-target-min px-8 ml-4 rounded-full bg-error text-on-error font-button-text text-button-text shadow-md active:scale-95 transition-transform duration-150 flex items-center gap-3">
+<span class="material-symbols-outlined text-[36px]">emergency</span>
+                SOS / Call Staff
+            </button>
+</div>
+</header>
+<!-- Main Canvas Area -->
+<main class="mt-[120px] mb-[100px] flex-1 flex flex-row gap-section-gap px-margin-edge py-gutter box-border h-[calc(100vh-220px)]">
+<!-- Left: Camera Preview Viewfinder -->
+<section class="flex-1 bg-surface-container-lowest border-2 border-outline-variant rounded-2xl relative overflow-hidden flex items-center justify-center shadow-sm">
+<!-- Simulated Camera Feed Background (Subtle Grid) -->
+<div class="absolute inset-0 opacity-10 bg-[radial-gradient(theme('colors.on-surface')_1px,transparent_1px)] [background-size:20px_20px]"></div>
+<!-- Document Alignment Guides -->
+<div class="absolute inset-12 border-4 border-dashed border-outline opacity-40 rounded-xl pointer-events-none"></div>
+<!-- Scanning Line Effect -->
+<div class="absolute inset-x-12 inset-y-12 overflow-hidden pointer-events-none rounded-xl">
+<div class="scan-line"></div>
+</div>
+<!-- Status Indicator Overlay -->
+<div class="absolute top-8 bg-inverse-surface text-inverse-on-surface px-8 py-4 rounded-full flex items-center gap-4 shadow-lg z-10">
+<span class="material-symbols-outlined animate-slow-spin">sync</span>
+<span class="font-label-lg text-label-lg">Scanning...</span>
+</div>
+<!-- Optional: Ghost image of a generic document to help users understand orientation -->
+<span class="material-symbols-outlined text-[200px] text-surface-variant opacity-30">description</span>
+</section>
+<!-- Right: Instructions and Primary Action -->
+<section class="w-[500px] flex flex-col justify-between shrink-0">
+<!-- Instruction Text -->
+<div class="flex flex-col gap-stack-gap mt-8">
+<div class="w-20 h-20 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-[48px] icon-fill">document_scanner</span>
+</div>
+<h1 class="font-display-lg text-headline-lg text-on-surface">
+                    Place your prescription or report under the camera
+                </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
+                    Ensure the document is laid flat within the dashed border. Lighting will adjust automatically.
+                </p>
+</div>
+<!-- Primary Action Button -->
+<button class="w-full min-h-[120px] bg-primary text-on-primary rounded-xl flex items-center justify-center gap-4 shadow-lg hover:brightness-110 active:scale-95 transition-all duration-150 mb-4">
+<span class="material-symbols-outlined text-[48px] icon-fill">photo_camera</span>
+<span class="font-button-text text-button-text tracking-wide">CAPTURE</span>
+</button>
+</section>
+</main>
+<!-- Footer Shared Component -->
+<footer class="fixed bottom-0 w-full z-50 flex justify-between items-center px-margin-edge h-[100px] bg-secondary-container rounded-t-xl shadow-2xl border-t border-outline-variant/20">
+<div class="text-on-secondary-container font-label-lg text-label-lg font-semibold flex items-center gap-3">
+<span class="material-symbols-outlined text-[32px] icon-fill">lock</span>
+            Your data is private. This session will clear automatically.
+        </div>
+<div class="flex items-center gap-stack-gap">
+<button class="text-on-secondary-container opacity-80 hover:opacity-100 font-label-lg text-label-lg transition-opacity px-4 py-2">
+                Accessibility Settings
+            </button>
+<div class="w-[2px] h-8 bg-on-secondary-container opacity-20"></div>
+<button class="text-on-secondary-container opacity-80 hover:opacity-100 font-label-lg text-label-lg transition-opacity px-4 py-2">
+                Language
+            </button>
+</div>
+</footer>
+</body></html>

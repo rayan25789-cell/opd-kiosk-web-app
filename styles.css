@@ -1,0 +1,134 @@
+/* Clinical Clarity Design System - OPD Kiosk Styles */
+:root {
+    --primary: #0041c8;
+    --primary-container: #0055ff;
+    --secondary: #006a6a;
+    --secondary-container: #8cf3f3;
+    --surface: #f9f9fc;
+    --surface-container-lowest: #ffffff;
+    --surface-container-low: #f3f3f6;
+    --surface-container: #eeeef0;
+    --surface-container-high: #e8e8ea;
+    --surface-container-highest: #e2e2e5;
+    --on-surface: #1a1c1e;
+    --on-surface-variant: #434656;
+    --outline: #737688;
+    --outline-variant: #c3c5d9;
+    --error: #ba1a1a;
+}
+
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+body {
+    font-family: 'Sora', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--surface);
+    color: var(--on-surface);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* Material Symbols */
+.material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    line-height: 1;
+}
+
+.icon-fill {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24 !important;
+}
+
+/* Animations */
+@keyframes pulse-ring {
+    0% {
+        box-shadow: 0 0 0 0 rgba(0, 85, 255, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 16px rgba(0, 85, 255, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(0, 85, 255, 0);
+    }
+}
+
+.active-ring {
+    animation: pulse-ring 2s infinite;
+}
+
+@keyframes voice-expand {
+    0% {
+        transform: scale(0.9);
+        opacity: 0.9;
+    }
+    50% {
+        transform: scale(1.15);
+        opacity: 0.4;
+    }
+    100% {
+        transform: scale(0.9);
+        opacity: 0.9;
+    }
+}
+
+.voice-wave {
+    animation: voice-expand 2.2s ease-in-out infinite;
+}
+
+/* Scanning Line Animation */
+@keyframes scan-anim {
+    0% {
+        top: 2%;
+        opacity: 0.2;
+    }
+    15% {
+        opacity: 1;
+    }
+    85% {
+        opacity: 1;
+    }
+    100% {
+        top: 96%;
+        opacity: 0.2;
+    }
+}
+
+.laser-scan {
+    position: absolute;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, transparent, #0055ff, #8cf3f3, #0055ff, transparent);
+    box-shadow: 0 0 20px 6px rgba(0, 85, 255, 0.6);
+    animation: scan-anim 2.5s ease-in-out infinite alternate;
+}
+
+/* Interactive Numpad & Keyboard Keys */
+.kiosk-btn {
+    transition: transform 0.12s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.kiosk-btn:active {
+    transform: scale(0.96);
+}
+
+/* Print simulation */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #printTicketArea, #printTicketArea * {
+        visibility: visible;
+    }
+    #printTicketArea {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+}
+

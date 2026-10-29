@@ -1,0 +1,249 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>MediKiosk Keyboard Input</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary": "#495157",
+                      "outline": "#737688",
+                      "tertiary-fixed": "#dce3eb",
+                      "secondary-container": "#8cf3f3",
+                      "surface-container-high": "#e8e8ea",
+                      "surface-container-low": "#f3f3f6",
+                      "secondary": "#006a6a",
+                      "surface-variant": "#e2e2e5",
+                      "on-primary": "#ffffff",
+                      "tertiary-container": "#616970",
+                      "on-error": "#ffffff",
+                      "on-surface-variant": "#434656",
+                      "error": "#ba1a1a",
+                      "on-surface": "#1a1c1e",
+                      "surface-container": "#eeeef0",
+                      "error-container": "#ffdad6",
+                      "secondary-fixed": "#8cf3f3",
+                      "on-primary-fixed-variant": "#0039b3",
+                      "inverse-primary": "#b6c4ff",
+                      "on-error-container": "#93000a",
+                      "surface-bright": "#f9f9fc",
+                      "inverse-on-surface": "#f0f0f3",
+                      "primary-fixed-dim": "#b6c4ff",
+                      "surface": "#f9f9fc",
+                      "primary-container": "#0055ff",
+                      "surface-tint": "#004dea",
+                      "on-tertiary-fixed-variant": "#40484e",
+                      "surface-container-highest": "#e2e2e5",
+                      "on-primary-fixed": "#001551",
+                      "on-tertiary-container": "#e2e9f0",
+                      "on-secondary": "#ffffff",
+                      "primary-fixed": "#dce1ff",
+                      "on-background": "#1a1c1e",
+                      "on-secondary-fixed": "#002020",
+                      "on-tertiary": "#ffffff",
+                      "on-primary-container": "#e3e6ff",
+                      "surface-dim": "#dadadc",
+                      "secondary-fixed-dim": "#6fd7d6",
+                      "outline-variant": "#c3c5d9",
+                      "surface-container-lowest": "#ffffff",
+                      "primary": "#0041c8",
+                      "inverse-surface": "#2f3133",
+                      "on-secondary-container": "#007070",
+                      "tertiary-fixed-dim": "#c0c7cf",
+                      "on-secondary-fixed-variant": "#004f4f",
+                      "background": "#f9f9fc",
+                      "on-tertiary-fixed": "#151c22"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "stack-gap": "24px",
+                      "touch-target-min": "80px",
+                      "section-gap": "80px",
+                      "margin-edge": "64px",
+                      "gutter": "32px"
+              },
+              "fontFamily": {
+                      "label-lg": [
+                              "Sora"
+                      ],
+                      "headline-md": [
+                              "Sora"
+                      ],
+                      "button-text": [
+                              "Sora"
+                      ],
+                      "body-md": [
+                              "Sora"
+                      ],
+                      "body-lg": [
+                              "Sora"
+                      ],
+                      "headline-lg": [
+                              "Sora"
+                      ],
+                      "display-lg": [
+                              "Sora"
+                      ]
+              },
+              "fontSize": {
+                      "label-lg": [
+                              "24px",
+                              {
+                                      "lineHeight": "30px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-md": [
+                              "36px",
+                              {
+                                      "lineHeight": "44px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "button-text": [
+                              "28px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-md": [
+                              "22px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-lg": [
+                              "28px",
+                              {
+                                      "lineHeight": "40px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "60px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display-lg": [
+                              "72px",
+                              {
+                                      "lineHeight": "88px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ]
+              }
+            },
+          }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 1;
+        }
+        
+        /* High visibility progress bar */
+        .progress-bar-top {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 12px;
+            background-color: #f3f3f6; /* surface-container-low */
+            z-index: 100;
+        }
+        .progress-fill {
+            height: 100%;
+            width: 45%; /* Example progress */
+            background-color: #0041c8; /* primary */
+        }
+        
+        /* Custom keyboard styling */
+        .key {
+            min-height: 80px;
+            min-width: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #ffffff;
+            border: 2px solid #c3c5d9; /* outline-variant */
+            border-radius: 0.5rem;
+            color: #1a1c1e; /* on-surface */
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .key:active {
+            background-color: #e2e2e5; /* surface-variant */
+            border-color: #0041c8; /* primary */
+        }
+        .key-wide {
+            flex-grow: 1;
+        }
+        .key-space {
+            flex-grow: 5;
+        }
+        .key-action {
+            background-color: #e8e8ea; /* surface-container-high */
+            color: #1a1c1e;
+        }
+        .key-primary {
+            background-color: #0041c8;
+            color: #ffffff;
+            border: none;
+        }
+    </style>
+</head>
+<body class="bg-surface font-body-lg text-on-surface h-screen w-screen overflow-hidden flex flex-col pt-[132px] pb-[100px]">
+<div class="progress-bar-top">
+<div class="progress-fill"></div>
+</div>
+<!-- TopAppBar from Shared Components -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-margin-edge h-[120px] bg-surface dark:bg-surface border-b-2 border-outline-variant mt-[12px]">
+<div class="flex items-center gap-4">
+<span class="text-headline-md font-headline-md font-bold text-primary dark:text-primary-fixed">OPD Kiosk</span>
+</div>
+<div class="flex items-center gap-6">
+<button class="w-[80px] h-[80px] rounded-full flex items-center justify-center hover:bg-surface-variant dark:hover:bg-surface-variant text-on-surface-variant dark:text-on-surface-variant transition-transform duration-150 active:scale-95">
+<span class="material-symbols-outlined text-[40px]" data-icon="home">home</span>
+</button>
+<button class="w-[80px] h-[80px] rounded-full flex items-center justify-center hover:bg-surface-variant dark:hover:bg-surface-variant text-on-surface-variant dark:text-on-surface-variant transition-transform duration-150 active:scale-95">
+<span class="material-symbols-outlined text-[40px]" data-icon="translate">translate</span>
+</button>
+<button class="min-w-[80px] h-[80px] px-8 rounded-full flex items-center justify-center bg-error text-on-error font-button-text text-button-text hover:opacity-90 active:scale-95 transition-transform">
+                SOS / Call Staff
+            </button>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="flex-grow flex flex-col justify-between px-margin-edge py-2 max-w-7xl mx-auto w-full"><div class="flex flex-col gap-3 mb-2"><div class="flex items-center justify-between gap-4"><h1 class="text-headline-md font-headline-md text-on-surface">Please describe your symptoms</h1><div class="flex items-center gap-3"><span class="text-label-lg font-label-lg text-on-surface-variant font-semibold">Who is entering information?</span><div class="flex bg-surface-container-high p-1 rounded-xl border border-outline-variant gap-1"><button class="flex items-center gap-2 px-5 py-2.5 rounded-lg font-label-lg text-label-lg transition-colors bg-primary text-on-primary shadow-sm font-semibold" type="button"><span class="material-symbols-outlined text-[28px]">person</span><span>Patient (Self)</span></button><button class="flex items-center gap-2 px-5 py-2.5 rounded-lg font-label-lg text-label-lg transition-colors text-on-surface-variant hover:bg-surface-variant font-semibold" type="button"><span class="material-symbols-outlined text-[28px]">supervisor_account</span><span>Informant / Attendant</span></button></div></div></div><div class="relative w-full"><div class="flex items-center justify-between px-4 py-2 bg-primary-fixed text-on-primary-fixed rounded-t-xl border-t-2 border-x-2 border-primary text-label-lg font-semibold"><div class="flex items-center gap-2"><span class="material-symbols-outlined text-[24px] text-primary">account_circle</span><span>Recording notes from: <strong class="text-primary">Patient (Direct)</strong> — kept separate from attendant statements</span></div><span class="material-symbols-outlined text-primary text-[20px]">verified_user</span></div><textarea autofocus="" class="w-full bg-surface-container-lowest border-2 border-primary rounded-b-xl rounded-t-none p-4 pb-16 text-headline-md font-headline-md text-on-surface placeholder-outline resize-none shadow-[0_0_15px_rgba(0,65,200,0.1)] outline-none focus:ring-4 focus:ring-primary/20 h-[120px]" placeholder="Tell us more about your symptoms...">I've been experiencing a mild headache</textarea><div class="absolute bottom-3 right-4 flex gap-4"><button class="h-[60px] px-6 rounded-full flex items-center gap-3 bg-surface-container-high hover:bg-surface-variant border-2 border-outline-variant text-on-surface font-button-text text-button-text transition-colors"><span class="material-symbols-outlined text-[28px]">mic</span><span>Speak instead</span></button></div></div></div><div class="w-full bg-surface-container-low rounded-xl p-3 shadow-sm border border-outline-variant flex flex-col gap-2 mb-2"><div class="flex gap-2 justify-center"><button class="key font-button-text text-button-text">Q</button><button class="key font-button-text text-button-text">W</button><button class="key font-button-text text-button-text">E</button><button class="key font-button-text text-button-text">R</button><button class="key font-button-text text-button-text">T</button><button class="key font-button-text text-button-text">Y</button><button class="key font-button-text text-button-text">U</button><button class="key font-button-text text-button-text">I</button><button class="key font-button-text text-button-text">O</button><button class="key font-button-text text-button-text">P</button><button class="key key-action font-button-text text-button-text px-4 w-[120px]"><span class="material-symbols-outlined text-[32px]">backspace</span></button></div><div class="flex gap-2 justify-center px-[40px]"><button class="key font-button-text text-button-text">A</button><button class="key font-button-text text-button-text">S</button><button class="key font-button-text text-button-text">D</button><button class="key font-button-text text-button-text">F</button><button class="key font-button-text text-button-text">G</button><button class="key font-button-text text-button-text">H</button><button class="key font-button-text text-button-text">J</button><button class="key font-button-text text-button-text">K</button><button class="key font-button-text text-button-text">L</button><button class="key key-action font-button-text text-button-text px-4 w-[120px]">Enter</button></div><div class="flex gap-2 justify-center"><button class="key key-action font-button-text text-button-text px-4 w-[120px]">Shift</button><button class="key font-button-text text-button-text">Z</button><button class="key font-button-text text-button-text">X</button><button class="key font-button-text text-button-text">C</button><button class="key font-button-text text-button-text">V</button><button class="key font-button-text text-button-text">B</button><button class="key font-button-text text-button-text">N</button><button class="key font-button-text text-button-text">M</button><button class="key font-button-text text-button-text">,</button><button class="key font-button-text text-button-text">.</button><button class="key key-action font-button-text text-button-text px-4 w-[120px]">Shift</button></div><div class="flex gap-2 justify-center"><button class="key key-action font-button-text text-button-text px-4 w-[120px]">?123</button><button class="key font-button-text text-button-text w-[80px]">@</button><button class="key key-space font-button-text text-button-text">Space</button><button class="key font-button-text text-button-text w-[80px]">-</button><button class="key key-primary font-button-text text-button-text px-8 min-w-[200px] flex gap-2">Next<span class="material-symbols-outlined text-[32px]">arrow_forward</span></button></div></div></main>
+<!-- Footer from Shared Components -->
+<footer class="fixed bottom-0 w-full z-50 flex justify-between items-center px-margin-edge h-[100px] shadow-2xl bg-secondary-container dark:bg-secondary-container rounded-t-xl">
+<div class="text-label-lg font-label-lg font-semibold text-on-secondary-container dark:text-on-secondary-container flex items-center gap-3 bg-secondary-container/50 px-6 py-3 rounded-xl border border-secondary-container/80">
+<span class="material-symbols-outlined text-[32px] text-primary">lock</span>
+            Your data is private. This session will clear automatically.
+        </div>
+<div class="flex gap-4">
+<button class="h-[80px] px-6 flex items-center text-on-secondary-container dark:text-on-secondary-container opacity-80 hover:opacity-100 font-label-lg text-label-lg transition-opacity">
+                Accessibility Settings
+            </button>
+<button class="h-[80px] px-6 flex items-center text-on-secondary-container dark:text-on-secondary-container opacity-80 hover:opacity-100 font-label-lg text-label-lg transition-opacity">
+                Language
+            </button>
+</div>
+</footer>
+</body></html>

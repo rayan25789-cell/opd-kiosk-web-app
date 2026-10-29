@@ -1,0 +1,204 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>OPD Kiosk - Attract Screen</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-on-surface": "#f0f0f3",
+                        "error-container": "#ffdad6",
+                        "on-tertiary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "surface-bright": "#f9f9fc",
+                        "on-tertiary-fixed-variant": "#40484e",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "secondary-fixed": "#8cf3f3",
+                        "tertiary-fixed": "#dce3eb",
+                        "surface-tint": "#004dea",
+                        "tertiary-container": "#616970",
+                        "on-primary-container": "#e3e6ff",
+                        "outline-variant": "#c3c5d9",
+                        "secondary": "#006a6a",
+                        "primary-fixed-dim": "#b6c4ff",
+                        "background": "#f9f9fc",
+                        "on-primary-fixed": "#001551",
+                        "on-tertiary-container": "#e2e9f0",
+                        "on-error": "#ffffff",
+                        "primary-container": "#0055ff",
+                        "on-surface": "#1a1c1e",
+                        "primary-fixed": "#dce1ff",
+                        "outline": "#737688",
+                        "inverse-primary": "#b6c4ff",
+                        "error": "#ba1a1a",
+                        "inverse-surface": "#2f3133",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-container": "#007070",
+                        "tertiary": "#495157",
+                        "surface-variant": "#e2e2e5",
+                        "surface-container-highest": "#e2e2e5",
+                        "surface": "#f9f9fc",
+                        "secondary-container": "#8cf3f3",
+                        "on-primary-fixed-variant": "#0039b3",
+                        "tertiary-fixed-dim": "#c0c7cf",
+                        "surface-container-high": "#e8e8ea",
+                        "on-secondary-fixed": "#002020",
+                        "on-surface-variant": "#434656",
+                        "surface-container-low": "#f3f3f6",
+                        "on-background": "#1a1c1e",
+                        "surface-container": "#eeeef0",
+                        "secondary-fixed-dim": "#6fd7d6",
+                        "on-secondary-fixed-variant": "#004f4f",
+                        "on-tertiary-fixed": "#151c22",
+                        "primary": "#0041c8",
+                        "surface-dim": "#dadadc"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "32px",
+                        "stack-gap": "24px",
+                        "section-gap": "80px",
+                        "touch-target-min": "80px",
+                        "margin-edge": "64px"
+                    },
+                    "fontFamily": {
+                        "label-lg": ["Sora"],
+                        "button-text": ["Sora"],
+                        "headline-md": ["Sora"],
+                        "display-lg": ["Sora"],
+                        "body-lg": ["Sora"],
+                        "body-md": ["Sora"],
+                        "headline-lg": ["Sora"]
+                    },
+                    "fontSize": {
+                        "label-lg": ["24px", { "lineHeight": "30px", "fontWeight": "600" }],
+                        "button-text": ["28px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "headline-md": ["36px", { "lineHeight": "44px", "fontWeight": "600" }],
+                        "display-lg": ["72px", { "lineHeight": "88px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["28px", { "lineHeight": "40px", "fontWeight": "400" }],
+                        "body-md": ["22px", { "lineHeight": "32px", "fontWeight": "400" }],
+                        "headline-lg": ["48px", { "lineHeight": "60px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            /* Prevent scrolling and zooming on kiosk */
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+        }
+
+        /* Ambient background pulse */
+        @keyframes ambientPulse {
+            0% { background-color: #f9f9fc; }
+            50% { background-color: #e3e6ff; }
+            100% { background-color: #f9f9fc; }
+        }
+        .ambient-bg {
+            animation: ambientPulse 8s infinite ease-in-out;
+        }
+
+        /* Language text rotation */
+        .lang-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }
+        .lang-text.active {
+            opacity: 1;
+        }
+
+        /* Button pulse */
+        @keyframes buttonPulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 85, 255, 0.4); }
+            50% { transform: scale(1.02); box-shadow: 0 0 0 40px rgba(0, 85, 255, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 85, 255, 0); }
+        }
+        .btn-pulse {
+            animation: buttonPulse 3s infinite;
+        }
+    </style>
+</head>
+<body class="bg-background ambient-bg h-screen w-screen flex flex-col font-body-lg text-on-background relative">
+<!-- Top App Bar (Attract state - minimal) -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-margin-edge h-[120px] bg-surface border-b-2 border-outline-variant">
+<div class="flex items-center gap-4 text-primary">
+<span class="material-symbols-outlined" style="font-size: 48px;">local_hospital</span>
+<span class="text-headline-md font-headline-md font-bold text-primary">OPD Kiosk</span>
+</div>
+<div class="flex items-center gap-stack-gap">
+<button aria-label="Translate" class="h-touch-target-min w-touch-target-min flex items-center justify-center rounded-full bg-surface-container-high text-primary hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined" style="font-size: 36px;">translate</span>
+</button>
+<button aria-label="SOS / Call Staff" class="h-touch-target-min px-8 flex items-center justify-center rounded-full bg-error text-on-error hover:opacity-90 transition-opacity gap-3">
+<span class="material-symbols-outlined" style="font-size: 36px;">sos</span>
+<span class="text-button-text font-button-text">SOS / Call Staff</span>
+</button>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="flex-grow flex flex-col items-center justify-center px-margin-edge mt-[120px] mb-[100px] relative">
+<!-- Rotating Greeting -->
+<div class="relative w-full h-32 mb-stack-gap flex items-center justify-center">
+<h1 class="lang-text active text-display-lg font-display-lg text-primary-fixed-variant">Namaste</h1>
+<h1 class="lang-text text-display-lg font-display-lg text-primary-fixed-variant">Vanakkam</h1>
+<h1 class="lang-text text-display-lg font-display-lg text-primary-fixed-variant">Hello</h1>
+<h1 class="lang-text text-display-lg font-display-lg text-primary-fixed-variant">Welcome</h1>
+</div>
+<!-- Instructional Subtitle -->
+<p class="text-headline-md font-headline-md text-on-surface-variant mb-section-gap text-center max-w-4xl">
+            Please tap the screen to register, check-in, or find your way.
+        </p>
+<!-- Tap to Begin Button -->
+<button class="btn-pulse bg-primary text-on-primary rounded-3xl min-h-[200px] w-full max-w-[800px] flex flex-col items-center justify-center gap-6 shadow-2xl hover:bg-primary-fixed-variant transition-colors relative overflow-hidden" onclick="window.location.reload();">
+<div class="absolute inset-0 opacity-10" style="background-image: repeating-linear-gradient(45deg, transparent, transparent 20px, #ffffff 20px, #ffffff 40px);"></div>
+<span class="material-symbols-outlined relative z-10" style="font-size: 80px; font-variation-settings: 'FILL' 1;">touch_app</span>
+<span class="text-display-lg font-display-lg relative z-10">Tap to Begin</span>
+</button>
+<!-- Decorative Medical Icon (Background layer) -->
+<div class="absolute -z-10 opacity-[0.03] text-primary" style="top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none;">
+<span class="material-symbols-outlined" style="font-size: 800px;">ecg_heart</span>
+</div>
+</main>
+<!-- Footer -->
+<footer class="fixed bottom-0 w-full z-50 flex justify-between items-center px-margin-edge h-[100px] shadow-2xl bg-secondary-container rounded-t-xl">
+<div class="flex items-center gap-4 text-on-secondary-container">
+<span class="material-symbols-outlined" style="font-size: 36px; font-variation-settings: 'FILL' 1;">lock</span>
+<span class="text-label-lg font-label-lg font-semibold">Your data is private. This session will clear automatically.</span>
+</div>
+<div class="flex gap-gutter">
+<button class="text-on-secondary-container text-body-lg font-body-lg opacity-80 hover:opacity-100 transition-opacity">Accessibility Settings</button>
+<button class="text-on-secondary-container text-body-lg font-body-lg opacity-80 hover:opacity-100 transition-opacity">Language</button>
+</div>
+</footer>
+<script>
+        // Rotating language text logic
+        document.addEventListener('DOMContentLoaded', () => {
+            const texts = document.querySelectorAll('.lang-text');
+            let currentIndex = 0;
+
+            setInterval(() => {
+                texts[currentIndex].classList.remove('active');
+                currentIndex = (currentIndex + 1) % texts.length;
+                texts[currentIndex].classList.add('active');
+            }, 3000); // Change every 3 seconds
+        });
+    </script>
+</body></html>
