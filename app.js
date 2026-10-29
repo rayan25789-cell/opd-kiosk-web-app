@@ -742,20 +742,25 @@ async function analyzeDocumentWithVisionAI(base64Data) {
             if (statusBadge) {
                 statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-primary animate-ping"></span> Gemini Vision AI Reading...';
             }
-            const cleanBase64 = base64Data.replace(/^data:image\/\w+;base64,/, '');
+
+            // Extract correct MIME type and pure base64 payload
+            const mimeMatch = base64Data.match(/^data:([^;]+);base64,/);
+            const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+            const cleanBase64 = base64Data.replace(/^data:[^;]+;base64,/, '');
 
             const requestBody = {
                 contents: [{
                     parts: [
                         {
-                            text: `You are an expert hospital OPD Kiosk Clinical Vision OCR. 
-Step 1: Inspect whether this image is an actual medical document (doctor prescription, OPD consultation slip, lab report, discharge note, or hospital bill).
+                            text: `You are an expert hospital OPD Kiosk Clinical Vision OCR.
+Inspect this medical document, prescription, doctor note, or report. Even if it is handwritten or in cursive doctor script, transcribe and decipher the clinical information accurately.
+Step 1: Inspect whether this image is an actual medical document (doctor prescription, OPD consultation slip, lab report, discharge note, hospital bill, or dental slip).
 If it is NOT a medical document (e.g. textbook page, invoice, code, article, resume, casual document):
 Return STRICT JSON:
 {
   "is_valid_medical_doc": false,
   "document_type": "Non-Medical Document",
-  "detected_topic": "Short summary of what this document actually is (e.g. Operating Systems Textbook - System Calls)",
+  "detected_topic": "Short summary of what this document actually is",
   "doctor_name": "None",
   "clinic_or_hospital": "Non-Medical Document",
   "patient_name": "None",
@@ -776,15 +781,15 @@ Return STRICT JSON:
   "diagnosis": "Primary diagnosis or clinical finding",
   "symptoms": ["Symptom 1", "Symptom 2"],
   "medications": [
-    { "name": "Medicine name with strength", "dosage": "e.g. 1 tab TDS", "timing": "e.g. After meals x 5 days" }
+    { "name": "Medicine name with strength", "dosage": "e.g. 1-0-1 x 5 days", "timing": "e.g. After meals" }
   ],
-  "recommended_department": "e.g. General Medicine OPD (Room 204)"
+  "recommended_department": "e.g. General Medicine OPD / Dental OPD / Pediatric OPD / Cardiology OPD"
 }
 Only output pure valid JSON without markdown fences.`
                         },
                         {
-                            inline_data: {
-                                mime_type: 'image/jpeg',
+                            inlineData: {
+                                mimeType: mimeType,
                                 data: cleanBase64
                             }
                         }
@@ -803,13 +808,24 @@ Only output pure valid JSON without markdown fences.`
             });
 
             if (!response.ok) {
-                throw new Error(`Gemini API returned status ${response.status}`);
+                const errorJson = await response.json().catch(() => ({}));
+                const errorMsg = errorJson.error?.message || `HTTP ${response.status} ${response.statusText}`;
+                throw new Error(`Gemini API Error: ${errorMsg}`);
             }
 
             const result = await response.json();
-            const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            const cleanedJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-            const parsedData = JSON.parse(cleanedJson);
+            const candidates = result.candidates;
+            if (!candidates || candidates.length === 0 || !candidates[0].content) {
+                throw new Error('No content returned from Gemini Vision API.');
+            }
+
+            const rawText = candidates[0].content.parts.map(p => p.text || '').join('');
+            const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) {
+                throw new Error('Could not parse clinical JSON from Vision AI response.');
+            }
+
+            const parsedData = JSON.parse(jsonMatch[0]);
 
             if (overlay) overlay.classList.add('hidden');
             if (laser) laser.classList.add('hidden');
@@ -817,10 +833,11 @@ Only output pure valid JSON without markdown fences.`
                 statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500"></span> Gemini 1.5 Flash Complete';
             }
 
-            renderExtractedMedicalData(parsedData, 'Live Gemini 1.5 Flash Vision');
+            renderExtractedMedicalData(parsedData, 'Live Gemini 1.5 Flash Vision AI');
             return;
         } catch (apiErr) {
-            console.warn('Vision API invocation error, switching to Client-Side Tesseract OCR:', apiErr);
+            console.error('Vision API invocation error:', apiErr);
+            alert(`⚠️ Gemini Vision API Notice:\n${apiErr.message}\n\nPlease verify your API key by clicking "API Key" in the top right. Falling back to in-browser OCR...`);
         }
     }
 

@@ -144,10 +144,19 @@
 </head>
 <body class="bg-surface text-on-surface h-screen w-screen overflow-hidden flex flex-col antialiased">
 <!-- TopAppBar Shared Component -->
-<header class="fixed top-0 w-full z-50 flex justify-between items-center px-margin-edge h-[120px] bg-surface border-b-2 border-outline-variant">
-<div class="text-headline-md font-headline-md font-bold text-primary">OPD Kiosk</div>
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-8 h-[120px] bg-surface border-b-2 border-outline-variant">
+<div class="flex items-center gap-4">
+    <div class="text-headline-md font-headline-md font-bold text-primary">OPD Kiosk</div>
+    <span id="scanStatusBadge" class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Ready
+    </span>
+</div>
 <div class="flex items-center gap-stack-gap">
-<button aria-label="Home" class="w-touch-target-min h-touch-target-min flex items-center justify-center rounded-full text-primary hover:bg-surface-variant active:scale-95 transition-transform duration-150">
+    <button onclick="toggleVisionApiKeyModal()" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-highest hover:bg-surface-variant text-on-surface text-sm font-semibold border border-outline-variant transition-colors" title="Configure Gemini API Key">
+        <span class="material-symbols-outlined text-[20px] text-primary">key</span>
+        <span id="apiKeyBtnLabel">API Key</span>
+    </button>
+<button onclick="window.location.href='../index.html'" aria-label="Home" class="w-touch-target-min h-touch-target-min flex items-center justify-center rounded-full text-primary hover:bg-surface-variant active:scale-95 transition-transform duration-150">
 <span class="material-symbols-outlined text-[40px]">home</span>
 </button>
 <button aria-label="Translate" class="w-touch-target-min h-touch-target-min flex items-center justify-center rounded-full text-primary hover:bg-surface-variant active:scale-95 transition-transform duration-150">
@@ -315,7 +324,42 @@
             </button>
 </div>
 </footer>
+<!-- Vision AI API Key Modal -->
+<div id="visionApiKeyModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-surface-container-lowest max-w-md w-full rounded-3xl p-6 shadow-2xl border-2 border-outline-variant">
+        <div class="flex justify-between items-center mb-4">
+            <div class="flex items-center gap-2">
+                <div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                    <span class="material-symbols-outlined text-[22px]">key</span>
+                </div>
+                <h3 class="text-xl font-bold text-on-surface">Gemini Vision API Key</h3>
+            </div>
+            <button onclick="toggleVisionApiKeyModal()" class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-variant flex items-center justify-center text-outline">
+                <span class="material-symbols-outlined text-[20px]">close</span>
+            </button>
+        </div>
+
+        <p class="text-xs text-on-surface-variant mb-4 leading-relaxed">
+            Paste your Google Gemini API key to enable live AI vision extraction on any prescription or report. Key is stored locally in your browser.
+        </p>
+
+        <div class="mb-4">
+            <label class="text-xs font-bold text-outline block mb-1">Google AI API Key</label>
+            <input type="password" id="inputGeminiApiKey" placeholder="AIzaSy..." class="w-full px-4 py-3 rounded-xl border-2 border-outline-variant focus:border-primary focus:outline-none text-sm bg-surface">
+        </div>
+
+        <div class="flex gap-2">
+            <button onclick="saveGeminiApiKey()" class="flex-1 py-3 bg-primary text-white font-bold rounded-xl text-sm shadow hover:bg-primary-container transition-colors">
+                Save API Key
+            </button>
+            <button onclick="clearGeminiApiKey()" class="px-4 py-3 bg-surface-container text-error font-bold rounded-xl text-sm hover:bg-surface-variant transition-colors">
+                Clear
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Client OCR & Kiosk Controller -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="../app.js"></script>
+<script src="../app.js?v=2.5.0"></script>
 </body></html>
