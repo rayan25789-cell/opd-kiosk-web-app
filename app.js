@@ -801,16 +801,59 @@ Only output pure valid JSON without markdown fences.`
                 }
             };
 
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody)
-            });
+            // Resilient Multi-Version Model Dispatcher
+            // Tries stable v1 and v1beta variants (gemini-1.5-flash, gemini-1.5-flash-latest, gemini-2.0-flash, gemini-1.5-flash-001)
+            const candidateUrls = [
+                `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-001:generateContent?key=${apiKey}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent?key=${apiKey}`,
+                `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${apiKey}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`
+            ];
 
-            if (!response.ok) {
-                const errorJson = await response.json().catch(() => ({}));
-                const errorMsg = errorJson.error?.message || `HTTP ${response.status} ${response.statusText}`;
-                throw new Error(`Gemini API Error: ${errorMsg}`);
+            const cachedEndpoint = localStorage.getItem('healvoice_working_gemini_url');
+            if (cachedEndpoint && candidateUrls.includes(cachedEndpoint)) {
+                // Move cached endpoint to front
+                const idx = candidateUrls.indexOf(cachedEndpoint);
+                candidateUrls.splice(idx, 1);
+                candidateUrls.unshift(cachedEndpoint);
+            }
+
+            let response = null;
+            let lastErrorMsg = null;
+
+            for (const url of candidateUrls) {
+                try {
+                    const res = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestBody)
+                    });
+
+                    if (res.ok) {
+                        response = res;
+                        localStorage.setItem('healvoice_working_gemini_url', url);
+                        break;
+                    } else if (res.status === 404) {
+                        // Model not found on this version, try next candidate
+                        continue;
+                    } else {
+                        const errJson = await res.json().catch(() => ({}));
+                        lastErrorMsg = errJson.error?.message || `HTTP ${res.status}`;
+                        if (res.status === 401 || res.status === 403) {
+                            throw new Error(`Authentication/Quota Error: ${lastErrorMsg}`);
+                        }
+                    }
+                } catch (fetchErr) {
+                    if (fetchErr.message.includes('Authentication')) throw fetchErr;
+                    lastErrorMsg = fetchErr.message;
+                }
+            }
+
+            if (!response) {
+                throw new Error(lastErrorMsg || 'None of the available Gemini Vision models could be reached with this API key.');
             }
 
             const result = await response.json();
