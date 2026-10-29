@@ -840,7 +840,16 @@
                             <!-- Sample Prescriptions Quick-Picker Grid (when in Samples mode) -->
                             <div id="scanSamplesZone" class="hidden absolute inset-0 flex flex-col p-5 z-20 bg-surface-container-lowest/95 overflow-y-auto">
                                 <h4 class="text-sm font-bold text-outline uppercase tracking-wider mb-3">Select a Realistic Sample Prescription:</h4>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 flex-1">
+                                    <button onclick="loadSamplePrescription('white_tusk_dental')" class="p-4 rounded-2xl border-2 border-outline-variant hover:border-primary text-left bg-surface-container hover:bg-primary-fixed/30 transition-all flex flex-col justify-between">
+                                        <div>
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-100 text-teal-800">Handwritten Dental</span>
+                                            <h5 class="font-bold text-sm text-on-surface mt-2">The White Tusk Clinic</h5>
+                                            <p class="text-xs text-on-surface-variant mt-1">Augmentin 625, Enzoflam, Pant 40, Hexigel</p>
+                                        </div>
+                                        <span class="text-xs font-bold text-primary mt-3 flex items-center gap-1">Load & Analyze <span class="material-symbols-outlined text-[16px]">arrow_forward</span></span>
+                                    </button>
+
                                     <button onclick="loadSamplePrescription('atray_hospital_fever')" class="p-4 rounded-2xl border-2 border-outline-variant hover:border-primary text-left bg-surface-container hover:bg-primary-fixed/30 transition-all flex flex-col justify-between">
                                         <div>
                                             <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-primary-fixed text-primary">General Medicine</span>
