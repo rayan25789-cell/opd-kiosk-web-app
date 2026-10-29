@@ -9,6 +9,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <!-- Client-Side Optical OCR Engine (Tesseract.js) -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script>
         tailwind.config = {
             darkMode: "class",
@@ -838,7 +840,16 @@
                             <!-- Sample Prescriptions Quick-Picker Grid (when in Samples mode) -->
                             <div id="scanSamplesZone" class="hidden absolute inset-0 flex flex-col p-5 z-20 bg-surface-container-lowest/95 overflow-y-auto">
                                 <h4 class="text-sm font-bold text-outline uppercase tracking-wider mb-3">Select a Realistic Sample Prescription:</h4>
-                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
+                                    <button onclick="loadSamplePrescription('atray_hospital_fever')" class="p-4 rounded-2xl border-2 border-outline-variant hover:border-primary text-left bg-surface-container hover:bg-primary-fixed/30 transition-all flex flex-col justify-between">
+                                        <div>
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-primary-fixed text-primary">General Medicine</span>
+                                            <h5 class="font-bold text-sm text-on-surface mt-2">Dr. Mohit Atray, MBBS</h5>
+                                            <p class="text-xs text-on-surface-variant mt-1">Fever, Paracetamol 500mg, Diclofenac, CBC</p>
+                                        </div>
+                                        <span class="text-xs font-bold text-primary mt-3 flex items-center gap-1">Load & Analyze <span class="material-symbols-outlined text-[16px]">arrow_forward</span></span>
+                                    </button>
+
                                     <button onclick="loadSamplePrescription('pediatric_fever')" class="p-4 rounded-2xl border-2 border-outline-variant hover:border-primary text-left bg-surface-container hover:bg-primary-fixed/30 transition-all flex flex-col justify-between">
                                         <div>
                                             <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Pediatric OPD</span>
@@ -913,18 +924,16 @@
                                 <div class="bg-surface-container p-3.5 rounded-2xl flex justify-between items-center">
                                     <div>
                                         <span class="text-[10px] text-outline uppercase font-semibold block">Document Type</span>
-                                        <span id="resDocType" class="text-sm font-bold text-on-surface">Doctor Prescription Slip</span>
+                                        <span id="resDocType" class="text-sm font-bold text-on-surface">Awaiting Document</span>
                                     </div>
-                                    <span id="resDoctorClinic" class="text-xs font-semibold text-primary bg-primary-fixed/40 px-2.5 py-1 rounded-lg">Dr. R. Sen (Apollo)</span>
+                                    <span id="resDoctorClinic" class="text-xs font-semibold text-outline bg-surface-container-highest px-2.5 py-1 rounded-lg">Upload or Capture a Slip</span>
                                 </div>
 
                                 <!-- Clinical Diagnosis & Symptoms -->
                                 <div class="bg-surface-container p-3.5 rounded-2xl">
                                     <span class="text-[10px] text-outline uppercase font-semibold block mb-1">Identified Diagnosis & Symptoms</span>
                                     <div id="resSymptomsList" class="flex flex-wrap gap-1.5">
-                                        <span class="bg-secondary-container text-on-secondary-container text-xs px-2.5 py-1 rounded-lg font-semibold">Acute URTI</span>
-                                        <span class="bg-secondary-container text-on-secondary-container text-xs px-2.5 py-1 rounded-lg font-semibold">High Fever (101°F)</span>
-                                        <span class="bg-secondary-container text-on-secondary-container text-xs px-2.5 py-1 rounded-lg font-semibold">Dry Cough</span>
+                                        <span class="text-xs text-outline italic">Upload or snap a prescription to extract symptoms</span>
                                     </div>
                                 </div>
 
@@ -932,33 +941,20 @@
                                 <div class="bg-surface-container p-3.5 rounded-2xl">
                                     <div class="flex justify-between items-center mb-2">
                                         <span class="text-[10px] text-outline uppercase font-semibold block">Prescribed Medications</span>
-                                        <span id="resMedCount" class="text-[11px] text-primary font-bold">2 Medicines</span>
+                                        <span id="resMedCount" class="text-[11px] text-outline font-semibold">0 Medicines</span>
                                     </div>
                                     <div id="resMedicationsList" class="space-y-2 max-h-36 overflow-y-auto pr-1">
-                                        <div class="flex justify-between items-center p-2 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-xs">
-                                            <div>
-                                                <strong class="text-on-surface block">Tab. Paracetamol 650mg</strong>
-                                                <span class="text-outline">1 tab thrice daily (TDS) x 3 days</span>
-                                            </div>
-                                            <span class="text-emerald-700 font-bold text-[10px] bg-emerald-50 px-2 py-0.5 rounded">After meals</span>
-                                        </div>
-                                        <div class="flex justify-between items-center p-2 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-xs">
-                                            <div>
-                                                <strong class="text-on-surface block">Tab. Cetirizine 10mg</strong>
-                                                <span class="text-outline">1 tab bedtime (HS) x 5 days</span>
-                                            </div>
-                                            <span class="text-emerald-700 font-bold text-[10px] bg-emerald-50 px-2 py-0.5 rounded">Night</span>
-                                        </div>
+                                        <span class="text-xs text-outline italic block p-2">Medications, dosages, and instructions will appear here</span>
                                     </div>
                                 </div>
 
                                 <!-- Auto-Triage Department Recommendation -->
-                                <div class="bg-emerald-50 border border-emerald-200 p-3.5 rounded-2xl flex items-center justify-between">
+                                <div class="bg-surface-container p-3.5 rounded-2xl flex items-center justify-between border border-outline-variant">
                                     <div>
-                                        <span class="text-[10px] text-emerald-800 uppercase font-bold block">Recommended OPD Route</span>
-                                        <span id="resDepartment" class="text-sm font-bold text-emerald-950">General Medicine OPD (Room 204)</span>
+                                        <span class="text-[10px] text-outline uppercase font-bold block">Recommended OPD Route</span>
+                                        <span id="resDepartment" class="text-sm font-bold text-on-surface">Pending OCR Analysis</span>
                                     </div>
-                                    <span class="material-symbols-outlined text-emerald-700 text-[28px]">verified</span>
+                                    <span class="material-symbols-outlined text-outline text-[28px]">pending</span>
                                 </div>
                             </div>
                         </div>
