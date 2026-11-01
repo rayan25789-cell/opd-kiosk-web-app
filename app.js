@@ -58,14 +58,37 @@ document.addEventListener('DOMContentLoaded', () => {
     initLanguages();
     startInactivityTimer();
     bindUserActivity();
-    navigateTo('idle');
+
+    // Check if coming from standalone screen or has attached scan in session
+    const pendingScan = sessionStorage.getItem('healvoice_pending_scan');
+    if (pendingScan) {
+        try {
+            const data = JSON.parse(pendingScan);
+            applyScannedDocumentToState(data);
+            sessionStorage.removeItem('healvoice_pending_scan');
+            navigateTo('summary');
+            return;
+        } catch (e) {
+            console.error('Error restoring pending scan:', e);
+        }
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const startScreen = urlParams.get('screen') || 'idle';
+    navigateTo(startScreen);
 });
+
+let lastVisitedScreen = 'idle';
 
 // Navigate to Screen
 function navigateTo(screenId) {
     // Stop camera if moving away from document scan
     if (kioskState.currentScreen === 'document-scan' && screenId !== 'document-scan') {
         stopDocumentScanner();
+    }
+
+    if (kioskState.currentScreen !== screenId) {
+        lastVisitedScreen = kioskState.currentScreen;
     }
 
     kioskState.currentScreen = screenId;
@@ -104,6 +127,15 @@ function navigateTo(screenId) {
     } else {
         globalHeader.classList.add('hidden');
         topProgressBar.classList.add('hidden');
+    }
+}
+
+// Navigate to Previous Screen
+function navigateBack() {
+    if (lastVisitedScreen && lastVisitedScreen !== kioskState.currentScreen) {
+        navigateTo(lastVisitedScreen);
+    } else {
+        navigateTo('home');
     }
 }
 
@@ -384,6 +416,7 @@ let extractedMedicalData = null;
 // High-Fidelity Medical Sample Prescriptions for Testing & Offline Demo
 const samplePrescriptions = {
     'pediatric_fever': {
+        is_valid_medical_doc: true,
         document_type: 'Pediatric Clinical Prescription',
         doctor_name: 'Dr. R. Sen, MD (Pediatrics)',
         clinic_or_hospital: 'Apollo Childrens Clinic, OPD 102',
@@ -398,6 +431,7 @@ const samplePrescriptions = {
         recommended_department: 'Pediatric OPD (Room 102)'
     },
     'cardiology_htn': {
+        is_valid_medical_doc: true,
         document_type: 'Cardiology Follow-Up Note',
         doctor_name: 'Dr. Vikram Rao, DM (Cardio)',
         clinic_or_hospital: 'Fortis Heart Institute, OPD 305',
@@ -412,6 +446,7 @@ const samplePrescriptions = {
         recommended_department: 'Cardiology OPD (Room 305)'
     },
     'ortho_joint_pain': {
+        is_valid_medical_doc: true,
         document_type: 'Orthopedic Assessment Sheet',
         doctor_name: 'Dr. S. Mehta, MS (Ortho)',
         clinic_or_hospital: 'Max Super Specialty Hospital, OPD 112',
@@ -426,6 +461,7 @@ const samplePrescriptions = {
         recommended_department: 'Orthopedic OPD (Room 112)'
     },
     'atray_hospital_fever': {
+        is_valid_medical_doc: true,
         document_type: 'General Hospital OPD Slip',
         doctor_name: 'Dr. Mohit Atray, MBBS',
         clinic_or_hospital: 'Dr. Atray General Hospital (Kamla Chowk)',
@@ -1414,6 +1450,91 @@ function renderExtractedMedicalData(data, engineLabel = 'Gemini Vision AI') {
     }
 }
 
+// Apply Scanned Document to Kiosk State (Patient, Department, Doctor, Symptoms)
+function applyScannedDocumentToState(data) {
+    if (!data) return;
+    kioskState.scannedDocument = data;
+
+    // 1. Patient Name & Demographics
+    if (data.patient_name && data.patient_name !== 'None' && data.patient_name !== 'N/A' && data.patient_name !== 'unknown') {
+        const rawName = data.patient_name.trim();
+        const parenMatch = rawName.match(/^(.*?)\s*\((?:(\d+)\s*(?:yrs?|y|m)?\s*(?:\/|,)?\s*([MFmf]|Male|Female)?)\)/i);
+        if (parenMatch) {
+            kioskState.patient.name = parenMatch[1].replace(/^(Mr|Mrs|Ms|Dr|Mast)\.?\s+/i, '').trim();
+            if (parenMatch[2]) kioskState.patient.age = parseInt(parenMatch[2], 10);
+            if (parenMatch[3]) {
+                const g = parenMatch[3].toUpperCase();
+                kioskState.patient.gender = (g === 'M' || g.startsWith('MALE')) ? 'Male' : 'Female';
+            }
+        } else {
+            kioskState.patient.name = rawName.replace(/^(Mr|Mrs|Ms|Dr|Mast)\.?\s+/i, '').trim();
+        }
+    }
+
+    // 2. Clinical Symptoms & Diagnosis (Replace default mock symptoms with document findings)
+    const docSymptoms = [];
+    if (Array.isArray(data.symptoms) && data.symptoms.length > 0) {
+        data.symptoms.forEach(s => {
+            const clean = s.trim();
+            if (clean && !docSymptoms.includes(clean)) {
+                docSymptoms.push(clean);
+            }
+        });
+    }
+    if (data.diagnosis && data.diagnosis !== 'Clinical Review' && data.diagnosis !== 'No medical diagnosis found') {
+        if (!docSymptoms.some(s => s.toLowerCase().includes(data.diagnosis.toLowerCase()))) {
+            docSymptoms.unshift(data.diagnosis);
+        }
+    }
+    if (docSymptoms.length > 0) {
+        kioskState.reportedSymptoms = docSymptoms;
+    }
+
+    // 3. Recommended Department & Consultation Room
+    if (data.recommended_department && data.recommended_department !== 'Invalid for Clinical OPD Triage') {
+        kioskState.assignedDepartment = data.recommended_department;
+        const roomMatch = data.recommended_department.match(/\((Room\s*\d+|Counter\s*\d+)\)/i);
+        if (roomMatch) {
+            kioskState.assignedRoom = roomMatch[1];
+        } else if (/dental/i.test(data.recommended_department)) {
+            kioskState.assignedRoom = 'Room 105';
+        } else if (/pediatric/i.test(data.recommended_department)) {
+            kioskState.assignedRoom = 'Room 102';
+        } else if (/cardio/i.test(data.recommended_department)) {
+            kioskState.assignedRoom = 'Room 305';
+        } else if (/ortho/i.test(data.recommended_department)) {
+            kioskState.assignedRoom = 'Room 112';
+        } else {
+            kioskState.assignedRoom = 'Room 204';
+        }
+    }
+
+    // 4. Assigned Doctor & Clinic
+    if (data.doctor_name && data.doctor_name !== 'None' && data.doctor_name !== 'None Detected') {
+        kioskState.assignedDoctor = data.doctor_name;
+    }
+    if (data.clinic_or_hospital && data.clinic_or_hospital !== 'Non-Clinical Document') {
+        kioskState.assignedClinic = data.clinic_or_hospital;
+    }
+
+    // 5. Healthcare System Category
+    const dept = (data.recommended_department || '').toLowerCase();
+    const docType = (data.document_type || '').toLowerCase();
+    if (dept.includes('dental') || docType.includes('dental')) {
+        kioskState.healthcareSystem = 'Dental Surgery & Oral Health';
+    } else if (dept.includes('ayush') || dept.includes('ayurved') || dept.includes('homeo')) {
+        kioskState.healthcareSystem = 'AYUSH (Ayurveda & Integrative Medicine)';
+    } else if (dept.includes('pediatric')) {
+        kioskState.healthcareSystem = 'Pediatrics (Child Healthcare)';
+    } else if (dept.includes('cardio')) {
+        kioskState.healthcareSystem = 'Cardiology & Heart Care';
+    } else if (dept.includes('ortho')) {
+        kioskState.healthcareSystem = 'Orthopedics & Joint Care';
+    } else {
+        kioskState.healthcareSystem = `Allopathic (${data.recommended_department || 'General Medicine'})`;
+    }
+}
+
 // Confirm Document Scan and attach to OPD Visit
 function confirmDocumentScan() {
     if (extractedMedicalData && extractedMedicalData.is_valid_medical_doc === false) {
@@ -1427,20 +1548,13 @@ function confirmDocumentScan() {
     }
 
     const data = extractedMedicalData || samplePrescriptions['pediatric_fever'];
-    kioskState.scannedDocument = data;
+    applyScannedDocumentToState(data);
 
-    // Merge symptoms into kioskState.reportedSymptoms
-    if (data.symptoms && Array.isArray(data.symptoms)) {
-        data.symptoms.forEach(s => {
-            if (!kioskState.reportedSymptoms.includes(s)) {
-                kioskState.reportedSymptoms.push(s);
-            }
-        });
-    }
-
-    // Update assigned department if provided
-    if (data.recommended_department && data.recommended_department !== 'Invalid for Clinical OPD Triage') {
-        kioskState.assignedDepartment = data.recommended_department;
+    // If running in standalone screen, persist to sessionStorage and redirect to index.html
+    if (window.location.pathname.includes('document_scan.html')) {
+        sessionStorage.setItem('healvoice_pending_scan', JSON.stringify(data));
+        window.location.href = '../index.html?screen=summary';
+        return;
     }
 
     navigateTo('summary');
@@ -1448,25 +1562,54 @@ function confirmDocumentScan() {
 
 // Update Summary Screen with Dynamic Symptoms & Attached Prescription
 function updateSummaryScreen() {
-    // Update Patient Profile
+    // 1. Update Patient Profile
     const nameEl = document.getElementById('summaryPatientName');
     const phoneEl = document.getElementById('summaryPatientPhone');
+    const avatarEl = document.getElementById('summaryPatientAvatar');
+    const detailsEl = document.getElementById('summaryPatientDetails');
+
     if (nameEl) nameEl.textContent = kioskState.patient.name;
     if (phoneEl) phoneEl.textContent = kioskState.patient.phone;
 
-    // Render Symptoms Tags
+    if (avatarEl && kioskState.patient.name) {
+        const initials = kioskState.patient.name
+            .replace(/^(Mr|Mrs|Ms|Dr|Mast)\.?\s+/i, '')
+            .split(' ')
+            .map(w => w[0])
+            .filter(Boolean)
+            .slice(0, 2)
+            .join('')
+            .toUpperCase() || 'PT';
+        avatarEl.textContent = initials;
+    }
+
+    if (detailsEl) {
+        detailsEl.innerHTML = `Mobile: <strong id="summaryPatientPhone">${escapeHtml(kioskState.patient.phone)}</strong> • Age: <span id="summaryPatientAge">${kioskState.patient.age || 32} (${kioskState.patient.gender || 'Male'})</span> • UHID: <span id="summaryPatientUhid">${kioskState.patient.uhid || '2026-98124'}</span>`;
+    }
+
+    // 2. Render Symptoms Tags
     const tagsContainer = document.getElementById('summarySymptomsTags');
     if (tagsContainer) {
         tagsContainer.innerHTML = '';
         kioskState.reportedSymptoms.forEach(symptom => {
             const badge = document.createElement('span');
             badge.className = 'bg-secondary-container text-on-secondary-container px-5 py-2 rounded-full text-base font-semibold flex items-center gap-2';
-            badge.innerHTML = `<span class="material-symbols-outlined text-[20px]">medical_services</span> ${symptom}`;
+            let icon = 'medical_services';
+            if (/fever|pyrexia|temperature/i.test(symptom)) icon = 'thermostat';
+            else if (/cough|pulm|cold|breath/i.test(symptom)) icon = 'pulmonology';
+            else if (/ache|pain|swelling|headache|joint|tooth|gingiv/i.test(symptom)) icon = 'sick';
+            badge.innerHTML = `<span class="material-symbols-outlined text-[20px]">${icon}</span> ${escapeHtml(symptom)}`;
             tagsContainer.appendChild(badge);
         });
     }
 
-    // Render Attached Document Card if scanned
+    // 3. Healthcare Selection Text
+    const systemEl = document.getElementById('summarySystemText');
+    if (systemEl) {
+        systemEl.textContent = kioskState.healthcareSystem || 'Allopathic (General Medicine OPD)';
+    }
+
+    // 4. Render Attached Document Card if scanned
     const attachedCard = document.getElementById('summaryAttachedDocCard');
     if (attachedCard) {
         if (kioskState.scannedDocument) {
@@ -1475,22 +1618,105 @@ function updateSummaryScreen() {
             const docDoctor = document.getElementById('summaryDocDoctor');
             const docType = document.getElementById('summaryDocType');
             const docMeds = document.getElementById('summaryDocMeds');
+            const docBadge = document.getElementById('summaryDocStatusBadge');
 
-            if (docDoctor) docDoctor.textContent = `${doc.doctor_name || 'Prescribing Doctor'} • ${doc.clinic_or_hospital || 'Medical Clinic'}`;
-            if (docType) docType.textContent = `${doc.document_type || 'Prescription'} (Diagnosis: ${doc.diagnosis || 'Clinical Review'})`;
+            if (docBadge) {
+                docBadge.textContent = 'Prescription Synced';
+            }
 
-            if (docMeds && doc.medications) {
-                docMeds.innerHTML = doc.medications.map(m => `• <strong>${m.name}</strong> - ${m.dosage || ''} (${m.timing || ''})`).join('<br>');
+            if (docDoctor) {
+                const docName = doc.doctor_name || 'Prescribing Doctor';
+                const clinicName = doc.clinic_or_hospital || 'Medical Clinic';
+                docDoctor.textContent = `${docName} • ${clinicName}`;
+            }
+
+            if (docType) {
+                const docTypeName = doc.document_type || 'Prescription Slip';
+                const diagnosisText = doc.diagnosis ? ` • Diagnosis: ${doc.diagnosis}` : '';
+                docType.textContent = `${docTypeName}${diagnosisText}`;
+            }
+
+            if (docMeds) {
+                if (doc.medications && doc.medications.length > 0) {
+                    docMeds.innerHTML = doc.medications.map(m => `
+                        <div class="flex items-center justify-between py-1 border-b border-outline-variant/30 last:border-0 text-xs">
+                            <div>
+                                <strong class="text-on-surface">${escapeHtml(m.name)}</strong>
+                                ${m.dosage ? `<span class="text-outline ml-1">(${escapeHtml(m.dosage)})</span>` : ''}
+                            </div>
+                            <span class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ml-2">${escapeHtml(m.timing || 'As directed')}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    docMeds.innerHTML = '<span class="italic text-outline">No specific medications listed</span>';
+                }
             }
         } else {
             attachedCard.classList.add('hidden');
         }
     }
 
-    // Update Slip Department Text
-    const slipDept = document.getElementById('slipDepartment');
-    if (slipDept) {
-        slipDept.textContent = kioskState.assignedDepartment || 'General Medicine OPD (Room 204)';
+    // 5. Recommended OPD Department Card
+    const deptTitle = document.getElementById('summaryDepartmentTitle');
+    if (deptTitle) {
+        deptTitle.textContent = kioskState.assignedDepartment || 'General Medicine OPD • Counter 04';
+    }
+
+    const doctorInfo = document.getElementById('summaryDoctorInfo');
+    if (doctorInfo) {
+        const docName = kioskState.assignedDoctor || 'Dr. Priya Menon, MD';
+        const roomText = kioskState.assignedRoom || 'Room 204';
+        doctorInfo.innerHTML = `Consultant: <strong>${escapeHtml(docName)}</strong> (${escapeHtml(roomText)}) • Estimated Wait: ~10-15 Mins`;
+    }
+
+    const tokenNumber = document.getElementById('summaryTokenNumber');
+    if (tokenNumber) {
+        tokenNumber.textContent = kioskState.tokenNumber || 'T-142';
+    }
+
+    // 6. Print Slip Modal Dynamic Population
+    const slipPatientName = document.getElementById('slipPatientName');
+    if (slipPatientName) slipPatientName.textContent = kioskState.patient.name;
+
+    const slipPatientId = document.getElementById('slipPatientId');
+    if (slipPatientId) slipPatientId.textContent = kioskState.patient.id || 'PID-9876-5432';
+
+    const slipDepartment = document.getElementById('slipDepartment');
+    if (slipDepartment) slipDepartment.textContent = kioskState.assignedDepartment || 'General Medicine OPD';
+
+    const slipDoctor = document.getElementById('slipDoctor');
+    if (slipDoctor) slipDoctor.textContent = `${kioskState.assignedDoctor} (${kioskState.assignedRoom})`;
+
+    const slipSymptoms = document.getElementById('slipSymptoms');
+    if (slipSymptoms) slipSymptoms.textContent = kioskState.reportedSymptoms.join(', ');
+
+    const slipToken = document.getElementById('slipTokenNumber');
+    if (slipToken) slipToken.textContent = `TOKEN # ${kioskState.tokenNumber || 'T-142'}`;
+
+    const slipDateTime = document.getElementById('slipDateTime');
+    if (slipDateTime) {
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        slipDateTime.textContent = `${dateStr}, ${timeStr}`;
+    }
+
+    const slipWaitingNote = document.getElementById('slipWaitingNote');
+    if (slipWaitingNote) {
+        slipWaitingNote.textContent = `Please wait at Waiting Lounge for ${kioskState.assignedRoom} until Token ${kioskState.tokenNumber} is called.`;
+    }
+
+    const slipPrescriptionRow = document.getElementById('slipPrescriptionRow');
+    const slipPrescriptionInfo = document.getElementById('slipPrescriptionInfo');
+    if (slipPrescriptionRow && slipPrescriptionInfo) {
+        if (kioskState.scannedDocument) {
+            slipPrescriptionRow.classList.remove('hidden');
+            const doc = kioskState.scannedDocument;
+            const medCount = (doc.medications && doc.medications.length) ? `${doc.medications.length} Meds` : 'Prescription';
+            slipPrescriptionInfo.textContent = `${doc.doctor_name || 'Attached Rx'} (${medCount})`;
+        } else {
+            slipPrescriptionRow.classList.add('hidden');
+        }
     }
 }
 
@@ -1545,7 +1771,9 @@ function clearGeminiApiKey() {
 
 // Print OPD Slip Simulation
 function printOPDSlip() {
-    document.getElementById('printModal').classList.remove('hidden');
+    updateSummaryScreen();
+    const modal = document.getElementById('printModal');
+    if (modal) modal.classList.remove('hidden');
 }
 
 function finishAndResetKiosk() {

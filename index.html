@@ -1065,13 +1065,13 @@
                     <!-- Patient ID & Basic Info -->
                     <div class="bg-surface-container-lowest border-2 border-outline-variant rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
                         <div class="flex items-center gap-5">
-                            <div class="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center text-2xl font-bold">
+                            <div id="summaryPatientAvatar" class="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center text-2xl font-bold">
                                 AS
                             </div>
                             <div>
                                 <span class="text-xs font-bold uppercase text-outline">Patient Profile</span>
                                 <h3 class="text-2xl font-bold text-on-surface" id="summaryPatientName">Aarav Sharma</h3>
-                                <p class="text-sm text-on-surface-variant">Mobile: <strong id="summaryPatientPhone">+91 98765 43210</strong> • Age: 32 • UHID: 2026-98124</p>
+                                <p class="text-sm text-on-surface-variant" id="summaryPatientDetails">Mobile: <strong id="summaryPatientPhone">+91 98765 43210</strong> • Age: <span id="summaryPatientAge">32</span> • UHID: <span id="summaryPatientUhid">2026-98124</span></p>
                             </div>
                         </div>
                         <button onclick="navigateTo('login')" class="px-5 py-2.5 rounded-full bg-surface-container hover:bg-surface-variant text-primary font-bold text-sm flex items-center gap-2">
@@ -1132,8 +1132,8 @@
                     <div class="bg-gradient-to-r from-primary-fixed to-surface-container-lowest border-4 border-primary rounded-2xl p-6 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
                             <span class="text-xs font-bold uppercase text-primary tracking-widest">Recommended OPD Department</span>
-                            <h3 class="text-3xl font-bold text-on-surface mt-1">General Medicine OPD • Counter 04</h3>
-                            <p class="text-base text-on-surface-variant mt-1">Consultant: <strong>Dr. Priya Menon, MD</strong> • Estimated Wait: ~12 Mins</p>
+                            <h3 class="text-3xl font-bold text-on-surface mt-1" id="summaryDepartmentTitle">General Medicine OPD • Counter 04</h3>
+                            <p class="text-base text-on-surface-variant mt-1" id="summaryDoctorInfo">Consultant: <strong>Dr. Priya Menon, MD</strong> • Estimated Wait: ~12 Mins</p>
                         </div>
                         <div class="bg-white px-6 py-4 rounded-xl border-2 border-primary text-center">
                             <span class="text-xs uppercase text-outline font-bold">Your Token Number</span>
@@ -1144,7 +1144,7 @@
 
                 <!-- Print Action Buttons -->
                 <div class="flex flex-col sm:flex-row items-center justify-between gap-6 pt-4 border-t-2 border-outline-variant">
-                    <button onclick="navigateTo('chat')" class="h-16 px-8 rounded-full bg-surface-container hover:bg-surface-variant text-on-surface text-lg font-bold flex items-center gap-3 w-full sm:w-auto justify-center">
+                    <button onclick="navigateBack()" class="h-16 px-8 rounded-full bg-surface-container hover:bg-surface-variant text-on-surface text-lg font-bold flex items-center gap-3 w-full sm:w-auto justify-center">
                         <span class="material-symbols-outlined text-[28px]">arrow_back</span>
                         <span>Back</span>
                     </button>
@@ -1224,9 +1224,9 @@
     <div id="printModal" class="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6 hidden">
         <div class="bg-white text-black max-w-md w-full rounded-2xl p-8 border-2 border-gray-300 shadow-2xl relative text-left" id="printTicketArea">
             <div class="text-center border-b-2 border-dashed border-gray-400 pb-4 mb-4">
-                <h2 class="text-2xl font-bold tracking-tight">CITY CARE MEMORIAL HOSPITAL</h2>
+                <h2 class="text-2xl font-bold tracking-tight" id="slipHospitalName">CITY CARE MEMORIAL HOSPITAL</h2>
                 <p class="text-xs text-gray-600">OPD CONSULTATION TOKEN SLIP</p>
-                <div class="mt-3 inline-block bg-black text-white px-6 py-2 rounded-lg text-3xl font-extrabold tracking-widest">
+                <div class="mt-3 inline-block bg-black text-white px-6 py-2 rounded-lg text-3xl font-extrabold tracking-widest" id="slipTokenNumber">
                     TOKEN # T-142
                 </div>
             </div>
@@ -1234,7 +1234,7 @@
             <div class="text-sm space-y-2 mb-6">
                 <div class="flex justify-between">
                     <span class="text-gray-600">Date & Time:</span>
-                    <span class="font-bold">29-Oct-2026, 10:15 AM</span>
+                    <span class="font-bold" id="slipDateTime">29-Oct-2026, 10:15 AM</span>
                 </div>
                 <div class="flex justify-between">
                     <span class="text-gray-600">Patient Name:</span>
@@ -1242,7 +1242,7 @@
                 </div>
                 <div class="flex justify-between">
                     <span class="text-gray-600">Patient ID:</span>
-                    <span class="font-bold">PID-9876-5432</span>
+                    <span class="font-bold" id="slipPatientId">PID-9876-5432</span>
                 </div>
                 <div class="flex justify-between">
                     <span class="text-gray-600">Assigned Department:</span>
@@ -1250,11 +1250,15 @@
                 </div>
                 <div class="flex justify-between">
                     <span class="text-gray-600">Consultant:</span>
-                    <span class="font-bold">Dr. Priya Menon (Room 204)</span>
+                    <span class="font-bold text-right max-w-[210px]" id="slipDoctor">Dr. Priya Menon (Room 204)</span>
                 </div>
                 <div class="flex justify-between">
                     <span class="text-gray-600">Reported Symptoms:</span>
-                    <span class="font-bold">Fever, Body Ache, Cough</span>
+                    <span class="font-bold text-right max-w-[210px]" id="slipSymptoms">Fever, Body Ache, Cough</span>
+                </div>
+                <div id="slipPrescriptionRow" class="hidden flex justify-between border-t border-gray-200 pt-2 text-xs">
+                    <span class="text-gray-600">Attached Rx:</span>
+                    <span class="font-semibold text-right max-w-[220px] text-emerald-800" id="slipPrescriptionInfo">Attached Prescription</span>
                 </div>
             </div>
 
@@ -1262,7 +1266,7 @@
                 <div class="w-32 h-32 mx-auto bg-gray-100 border-2 border-gray-300 flex items-center justify-center text-xs font-mono text-gray-500 mb-2">
                     [ QR TOKEN CODE ]
                 </div>
-                <p class="text-xs text-gray-500">Please wait at Waiting Lounge B until Token T-142 is called.</p>
+                <p class="text-xs text-gray-500" id="slipWaitingNote">Please wait at Waiting Lounge B until Token T-142 is called.</p>
             </div>
 
             <div class="mt-6 flex gap-3 print:hidden">
@@ -1297,7 +1301,7 @@
     </div>
 
     <!-- JavaScript Controller -->
-    <script src="app.js?v=3.1.0"></script>
+    <script src="app.js?v=3.2.0"></script>
 </body>
 </html>
 
