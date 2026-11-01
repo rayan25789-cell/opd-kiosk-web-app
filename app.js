@@ -765,20 +765,6 @@ function loadSamplePrescription(sampleId) {
     }, 1100);
 }
 
-// Analyze Captured Image with Vision AI (Gemini 1.5 Flash API or In-Browser Tesseract OCR)
-async function analyzeDocumentWithVisionAI(base64Data) {
-    const overlay = document.getElementById('scanProcessingOverlay');
-    const laser = document.getElementById('scanLaserEffect');
-    const statusBadge = document.getElementById('scanStatusBadge');
-
-    if (overlay) overlay.classList.remove('hidden');
-    if (laser) laser.classList.remove('hidden');
-    if (statusBadge) {
-        statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-primary animate-ping"></span> Optical OCR Processing...';
-    }
-
-    const apiKey = localStorage.getItem('healvoice_gemini_key');
-
 // Analyze Captured Image with Multi-Provider Free Vision AI
 async function analyzeDocumentWithVisionAI(base64Data) {
     const overlay = document.getElementById('scanProcessingOverlay');
