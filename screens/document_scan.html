@@ -326,31 +326,50 @@
 </footer>
 <!-- Vision AI API Key Modal -->
 <div id="visionApiKeyModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-surface-container-lowest max-w-md w-full rounded-3xl p-6 shadow-2xl border-2 border-outline-variant">
+    <div class="bg-surface-container-lowest max-w-lg w-full rounded-3xl p-6 shadow-2xl border-2 border-outline-variant">
         <div class="flex justify-between items-center mb-4">
             <div class="flex items-center gap-2">
                 <div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                    <span class="material-symbols-outlined text-[22px]">key</span>
+                    <span class="material-symbols-outlined text-[22px]">neurology</span>
                 </div>
-                <h3 class="text-xl font-bold text-on-surface">Gemini Vision API Key</h3>
+                <div>
+                    <h3 class="text-xl font-bold text-on-surface">Free High-Accuracy Vision AI</h3>
+                    <span class="text-xs text-secondary font-semibold">Specialized for Handwritten Doctor Prescriptions</span>
+                </div>
             </div>
             <button onclick="toggleVisionApiKeyModal()" class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-variant flex items-center justify-center text-outline">
                 <span class="material-symbols-outlined text-[20px]">close</span>
             </button>
         </div>
 
-        <p class="text-xs text-on-surface-variant mb-4 leading-relaxed">
-            Paste your Google Gemini API key to enable live AI vision extraction on any prescription or report. Key is stored locally in your browser.
-        </p>
+        <!-- Provider Selector -->
+        <div class="mb-4">
+            <label class="text-xs font-bold text-outline block mb-1.5">Select AI Provider (All Have Free Tiers):</label>
+            <select id="selectVisionProvider" onchange="handleVisionProviderChange()" class="w-full px-4 py-2.5 rounded-xl border-2 border-outline-variant focus:border-primary text-sm bg-surface font-semibold text-on-surface">
+                <option value="auto">Auto-Detect from API Key (Recommended)</option>
+                <option value="openrouter">OpenRouter Free (Qwen 2.5-VL 72B - #1 for Handwriting)</option>
+                <option value="groq">Groq Cloud Free (Llama 3.2 Vision - Blazing Fast)</option>
+                <option value="gemini">Google AI Studio (Gemini 2.0 / 1.5 Free Tier)</option>
+                <option value="openai">OpenAI (GPT-4o-mini / GPT-4o)</option>
+            </select>
+        </div>
 
         <div class="mb-4">
-            <label class="text-xs font-bold text-outline block mb-1">Google AI API Key</label>
-            <input type="password" id="inputGeminiApiKey" placeholder="AIzaSy..." class="w-full px-4 py-3 rounded-xl border-2 border-outline-variant focus:border-primary focus:outline-none text-sm bg-surface">
+            <div class="flex justify-between items-center mb-1">
+                <label class="text-xs font-bold text-outline">API Key</label>
+                <a id="providerHelpLink" href="https://openrouter.ai/keys" target="_blank" class="text-xs text-primary font-bold hover:underline flex items-center gap-0.5">
+                    Get Free Key <span class="material-symbols-outlined text-[14px]">open_in_new</span>
+                </a>
+            </div>
+            <input type="password" id="inputGeminiApiKey" placeholder="Paste your API key here (sk-or-..., gsk_..., AIzaSy..., or sk-...)" class="w-full px-4 py-3 rounded-xl border-2 border-outline-variant focus:border-primary focus:outline-none text-sm bg-surface">
+            <p id="providerHintText" class="text-[11px] text-on-surface-variant mt-1.5 leading-relaxed">
+                💡 <strong>Top Free Recommendation:</strong> Get a 100% free key from <a href="https://openrouter.ai/keys" target="_blank" class="text-primary font-bold underline">OpenRouter</a> for <strong>Qwen 2.5-VL 72B</strong> (the #1 vision model for cursive doctor handwriting) or from <a href="https://console.groq.com/keys" target="_blank" class="text-primary font-bold underline">Groq Cloud</a>.
+            </p>
         </div>
 
         <div class="flex gap-2">
             <button onclick="saveGeminiApiKey()" class="flex-1 py-3 bg-primary text-white font-bold rounded-xl text-sm shadow hover:bg-primary-container transition-colors">
-                Save API Key
+                Save & Connect Engine
             </button>
             <button onclick="clearGeminiApiKey()" class="px-4 py-3 bg-surface-container text-error font-bold rounded-xl text-sm hover:bg-surface-variant transition-colors">
                 Clear
@@ -361,5 +380,5 @@
 
 <!-- Client OCR & Kiosk Controller -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="../app.js?v=2.6.0"></script>
+<script src="../app.js?v=3.0.0"></script>
 </body></html>
