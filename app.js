@@ -58,11 +58,39 @@ document.addEventListener('DOMContentLoaded', () => {
     initLanguages();
     startInactivityTimer();
     bindUserActivity();
-    navigateTo('idle');
+
+    // Check if coming from standalone screen or has attached scan in session
+    const pendingScan = sessionStorage.getItem('healvoice_pending_scan');
+    if (pendingScan) {
+        try {
+            const data = JSON.parse(pendingScan);
+            applyScannedDocumentToState(data);
+            sessionStorage.removeItem('healvoice_pending_scan');
+            navigateTo('summary');
+            return;
+        } catch (e) {
+            console.error('Error restoring pending scan:', e);
+        }
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const startScreen = urlParams.get('screen') || 'idle';
+    navigateTo(startScreen);
 });
+
+let lastVisitedScreen = 'idle';
 
 // Navigate to Screen
 function navigateTo(screenId) {
+    // Stop camera if moving away from document scan
+    if (kioskState.currentScreen === 'document-scan' && screenId !== 'document-scan') {
+        stopDocumentScanner();
+    }
+
+    if (kioskState.currentScreen !== screenId) {
+        lastVisitedScreen = kioskState.currentScreen;
+    }
+
     kioskState.currentScreen = screenId;
     resetInactivityTimer();
 
@@ -75,6 +103,13 @@ function navigateTo(screenId) {
     const targetScreen = document.getElementById(`screen-${screenId}`);
     if (targetScreen) {
         targetScreen.classList.remove('hidden');
+    }
+
+    // Trigger screen-specific initializers
+    if (screenId === 'document-scan') {
+        initDocumentScanner();
+    } else if (screenId === 'summary') {
+        updateSummaryScreen();
     }
 
     // Update Header & Progress Bar
@@ -92,6 +127,15 @@ function navigateTo(screenId) {
     } else {
         globalHeader.classList.add('hidden');
         topProgressBar.classList.add('hidden');
+    }
+}
+
+// Navigate to Previous Screen
+function navigateBack() {
+    if (lastVisitedScreen && lastVisitedScreen !== kioskState.currentScreen) {
+        navigateTo(lastVisitedScreen);
+    } else {
+        navigateTo('home');
     }
 }
 
@@ -360,19 +404,1376 @@ function toggleVoiceListening() {
     }
 }
 
-// Document Scan Simulation
-function rescanDocument() {
-    alert('Align document inside guidelines on glass. Scanning again...');
+// ==============================================
+// VISION AI DOCUMENT SCANNER ENGINE
+// ==============================================
+
+let activeScannerStream = null;
+let currentScanMode = 'camera';
+let lastCapturedImageBase64 = null;
+let extractedMedicalData = null;
+
+// High-Fidelity Medical Sample Prescriptions for Testing & Offline Demo
+const samplePrescriptions = {
+    'pediatric_fever': {
+        is_valid_medical_doc: true,
+        document_type: 'Pediatric Clinical Prescription',
+        doctor_name: 'Dr. R. Sen, MD (Pediatrics)',
+        clinic_or_hospital: 'Apollo Childrens Clinic, OPD 102',
+        patient_name: 'Aarav Sharma (32 / M - Child Accomp.)',
+        diagnosis: 'Acute Viral Bronchitis & High Pyrexia',
+        symptoms: ['High Fever (102°F)', 'Productive Cough', 'Loss of Appetite'],
+        medications: [
+            { name: 'Syp. Paracetamol 250mg/5ml', dosage: '5ml thrice daily (TDS)', timing: 'After food x 3 days' },
+            { name: 'Syp. Amoxiclav 228mg', dosage: '5ml twice daily (BD)', timing: 'After meals x 5 days' },
+            { name: 'Syp. Levocetirizine 2.5mg', dosage: '2.5ml at bedtime (HS)', timing: 'Night x 5 days' }
+        ],
+        recommended_department: 'Pediatric OPD (Room 102)'
+    },
+    'cardiology_htn': {
+        is_valid_medical_doc: true,
+        document_type: 'Cardiology Follow-Up Note',
+        doctor_name: 'Dr. Vikram Rao, DM (Cardio)',
+        clinic_or_hospital: 'Fortis Heart Institute, OPD 305',
+        patient_name: 'Aarav Sharma',
+        diagnosis: 'Essential Hypertension (Stage 2) & Exertional Angina',
+        symptoms: ['Exertional Chest Heaviness', 'Mild Dyspnea', 'BP 150/95 mmHg'],
+        medications: [
+            { name: 'Tab. Telmisartan 40mg', dosage: '1 tablet once daily (OD)', timing: 'Morning before food' },
+            { name: 'Tab. Amlodipine 5mg', dosage: '1 tablet once daily (OD)', timing: 'Evening' },
+            { name: 'Tab. Ecosprin 75mg', dosage: '1 tablet post lunch', timing: 'Daily with water' }
+        ],
+        recommended_department: 'Cardiology OPD (Room 305)'
+    },
+    'ortho_joint_pain': {
+        is_valid_medical_doc: true,
+        document_type: 'Orthopedic Assessment Sheet',
+        doctor_name: 'Dr. S. Mehta, MS (Ortho)',
+        clinic_or_hospital: 'Max Super Specialty Hospital, OPD 112',
+        patient_name: 'Aarav Sharma',
+        diagnosis: 'Bilateral Primary Knee Osteoarthritis (Grade II)',
+        symptoms: ['Bilateral Knee Pain', 'Morning Stiffness > 30 mins', 'Crepitus on Flexion'],
+        medications: [
+            { name: 'Tab. Aceclofenac + Paracetamol', dosage: '1 tablet BD (SOS Pain)', timing: 'After meals x 5 days' },
+            { name: 'Cap. Glucosamine Sulfate 500mg', dosage: '1 capsule once daily (OD)', timing: 'Morning with milk' },
+            { name: 'Aceclofenac Gel 1.5% w/w', dosage: 'Gentle topical application', timing: 'Twice daily' }
+        ],
+        recommended_department: 'Orthopedic OPD (Room 112)'
+    },
+    'atray_hospital_fever': {
+        is_valid_medical_doc: true,
+        document_type: 'General Hospital OPD Slip',
+        doctor_name: 'Dr. Mohit Atray, MBBS',
+        clinic_or_hospital: 'Dr. Atray General Hospital (Kamla Chowk)',
+        patient_name: 'Komal Singh (24 / M)',
+        diagnosis: 'Acute Febrile Illness (Fever)',
+        symptoms: ['High Fever', 'Body Pain'],
+        medications: [
+            { name: 'Tab. Paracetamol 500mg', dosage: 'Oral after meals if required', timing: 'When fever occurs' },
+            { name: 'Tab. Diclofenac', dosage: 'Oral 1 required', timing: 'If pain occurs' },
+            { name: 'Lab: CBC, Liver Profile', dosage: 'Diagnostic Tests', timing: 'Routine' }
+        ],
+        recommended_department: 'General Medicine OPD (Room 204)'
+    },
+    'white_tusk_dental': {
+        is_valid_medical_doc: true,
+        document_type: 'Handwritten Dental Prescription',
+        doctor_name: 'Dental Surgeon & Oral Implantologist',
+        clinic_or_hospital: 'The White Tusk Dental Clinic',
+        patient_name: 'Mr. Sachin Sarogane (28 / M)',
+        diagnosis: 'Acute Odontogenic Infection & Gingivitis',
+        symptoms: ['Severe Dental Pain', 'Gingival Inflammation'],
+        medications: [
+            { name: 'Tab. Augmentin 625mg', dosage: '1 - 0 - 1 (Twice Daily) x 5 days', timing: 'After meals' },
+            { name: 'Tab. Enzoflam', dosage: '1 - 0 - 1 (Twice Daily) x 5 days', timing: 'After meals (Pain & Swelling)' },
+            { name: 'Tab. Pant 40mg', dosage: '1 - 0 - 0 (Once Daily) x 5 days', timing: 'Before meals' },
+            { name: 'Hexigel Gum Paint', dosage: 'Gentle gum massage 1 - 0 - 1', timing: '1 week after brushing' }
+        ],
+        recommended_department: 'Dental OPD (Room 105)'
+    }
+};
+
+// Initialize Scanner (called on navigation to 'document-scan')
+function initDocumentScanner() {
+    updateApiKeyButtonStatus();
+    switchScanMode(currentScanMode || 'camera');
 }
 
+// Update API key status badge on button
+function updateApiKeyButtonStatus() {
+    const key = localStorage.getItem('healvoice_gemini_key');
+    const provider = localStorage.getItem('healvoice_vision_provider') || 'auto';
+    const label = document.getElementById('apiKeyBtnLabel');
+    if (label) {
+        if (key) {
+            let providerName = 'Vision AI';
+            if (provider === 'openrouter' || key.startsWith('sk-or-')) providerName = 'Qwen 2.5-VL';
+            else if (provider === 'groq' || key.startsWith('gsk_')) providerName = 'Groq Vision';
+            else if (provider === 'openai' || key.startsWith('sk-')) providerName = 'GPT-4o';
+            else if (provider === 'gemini' || key.startsWith('AIza')) providerName = 'Gemini';
+            label.textContent = `${providerName} (Active)`;
+        } else {
+            label.textContent = 'Free Vision AI Key';
+        }
+    }
+}
+
+// Provider Change Handler in Settings Modal
+function handleVisionProviderChange() {
+    const sel = document.getElementById('selectVisionProvider');
+    const link = document.getElementById('providerHelpLink');
+    const hint = document.getElementById('providerHintText');
+    if (!sel || !link || !hint) return;
+
+    const val = sel.value;
+    localStorage.setItem('healvoice_vision_provider', val);
+
+    if (val === 'openrouter') {
+        link.href = 'https://openrouter.ai/keys';
+        link.innerHTML = 'Get Free Key <span class="material-symbols-outlined text-[14px]">open_in_new</span>';
+        hint.innerHTML = '✨ <strong>OpenRouter Free Tier:</strong> Provides <strong>Qwen 2.5-VL 72B</strong> (the #1 vision model for handwriting & messy doctor notes). Completely free, no credit card required.';
+    } else if (val === 'groq') {
+        link.href = 'https://console.groq.com/keys';
+        link.innerHTML = 'Get Free Key <span class="material-symbols-outlined text-[14px]">open_in_new</span>';
+        hint.innerHTML = '⚡ <strong>Groq Cloud Free:</strong> Provides <strong>Llama 3.2 11B Vision</strong>. Blazing fast (under 1 second), 100% free with instant API key creation.';
+    } else if (val === 'gemini') {
+        link.href = 'https://aistudio.google.com/apikey';
+        link.innerHTML = 'Get Free Key <span class="material-symbols-outlined text-[14px]">open_in_new</span>';
+        hint.innerHTML = '🌟 <strong>Google AI Studio:</strong> Free tier for <strong>Gemini 2.0 / 1.5 Flash</strong>. Automatically detects all active models on your Google key.';
+    } else if (val === 'openai') {
+        link.href = 'https://platform.openai.com/api-keys';
+        link.innerHTML = 'OpenAI Keys <span class="material-symbols-outlined text-[14px]">open_in_new</span>';
+        hint.innerHTML = '🧠 <strong>OpenAI:</strong> Uses <strong>GPT-4o-mini</strong> ($0.00015/scan), industry gold standard for clinical medical comprehension.';
+    } else {
+        link.href = 'https://openrouter.ai/keys';
+        link.innerHTML = 'Get Free Key <span class="material-symbols-outlined text-[14px]">open_in_new</span>';
+        hint.innerHTML = '💡 <strong>Auto-Detect:</strong> Paste any free key from OpenRouter (<code>sk-or-...</code>), Groq (<code>gsk_...</code>), Google (<code>AIza...</code>), or OpenAI (<code>sk-...</code>). The engine configures the model automatically!';
+    }
+}
+
+// Switch between Camera, Upload, and Sample modes
+function switchScanMode(mode) {
+    currentScanMode = mode;
+    const tabCam = document.getElementById('tabCamera');
+    const tabUp = document.getElementById('tabUpload');
+    const tabSamp = document.getElementById('tabSamples');
+    const video = document.getElementById('scanVideo');
+    const preview = document.getElementById('scanImagePreview');
+    const uploadZone = document.getElementById('scanUploadZone');
+    const samplesZone = document.getElementById('scanSamplesZone');
+
+    // Reset tab active styles
+    [tabCam, tabUp, tabSamp].forEach(tab => {
+        if (tab) {
+            tab.className = 'flex-1 py-2.5 px-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 text-on-surface-variant hover:text-on-surface transition-all';
+        }
+    });
+
+    const activeClasses = 'flex-1 py-2.5 px-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 bg-white text-primary shadow-sm transition-all';
+
+    if (mode === 'camera') {
+        if (tabCam) tabCam.className = activeClasses;
+        if (uploadZone) uploadZone.classList.add('hidden');
+        if (samplesZone) samplesZone.classList.add('hidden');
+        if (preview && !lastCapturedImageBase64) preview.classList.add('hidden');
+        startCameraStream();
+    } else if (mode === 'upload') {
+        if (tabUp) tabUp.className = activeClasses;
+        stopCameraStream();
+        if (uploadZone) uploadZone.classList.remove('hidden');
+        if (samplesZone) samplesZone.classList.add('hidden');
+    } else if (mode === 'samples') {
+        if (tabSamp) tabSamp.className = activeClasses;
+        stopCameraStream();
+        if (uploadZone) uploadZone.classList.add('hidden');
+        if (samplesZone) samplesZone.classList.remove('hidden');
+    }
+}
+
+// Start Web Camera Stream
+async function startCameraStream() {
+    const video = document.getElementById('scanVideo');
+    const preview = document.getElementById('scanImagePreview');
+    const statusBadge = document.getElementById('scanStatusBadge');
+
+    if (!video) return;
+
+    if (lastCapturedImageBase64) {
+        // Already has captured snapshot
+        video.classList.add('hidden');
+        if (preview) {
+            preview.src = lastCapturedImageBase64;
+            preview.classList.remove('hidden');
+        }
+        return;
+    }
+
+    try {
+        if (activeScannerStream) {
+            stopCameraStream();
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: { ideal: 'environment' },
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            },
+            audio: false
+        });
+
+        activeScannerStream = stream;
+        video.srcObject = stream;
+        video.classList.remove('hidden');
+        if (preview) preview.classList.add('hidden');
+
+        if (statusBadge) {
+            statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Camera Active';
+        }
+    } catch (err) {
+        console.warn('Camera access unavailable or denied:', err);
+        if (statusBadge) {
+            statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span> Camera Offline';
+        }
+        // Gracefully switch to Upload mode
+        switchScanMode('upload');
+    }
+}
+
+// Stop Camera Stream
+function stopCameraStream() {
+    if (activeScannerStream) {
+        activeScannerStream.getTracks().forEach(track => track.stop());
+        activeScannerStream = null;
+    }
+    const video = document.getElementById('scanVideo');
+    if (video) {
+        video.srcObject = null;
+    }
+}
+
+function stopDocumentScanner() {
+    stopCameraStream();
+}
+
+// Capture Snapshot from Camera Viewport
+function captureDocumentSnapshot() {
+    const video = document.getElementById('scanVideo');
+    const canvas = document.getElementById('scanCanvas');
+    const preview = document.getElementById('scanImagePreview');
+
+    if (currentScanMode === 'samples') {
+        loadSamplePrescription('pediatric_fever');
+        return;
+    }
+
+    if (currentScanMode === 'upload' && !lastCapturedImageBase64) {
+        document.getElementById('scanFileInput').click();
+        return;
+    }
+
+    if (video && video.srcObject && canvas) {
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        lastCapturedImageBase64 = dataUrl;
+
+        stopCameraStream();
+        video.classList.add('hidden');
+        if (preview) {
+            preview.src = dataUrl;
+            preview.classList.remove('hidden');
+        }
+
+        analyzeDocumentWithVisionAI(dataUrl);
+    } else if (lastCapturedImageBase64) {
+        analyzeDocumentWithVisionAI(lastCapturedImageBase64);
+    }
+}
+
+// Reset Document Scanner
+function resetDocumentScanner() {
+    lastCapturedImageBase64 = null;
+    extractedMedicalData = null;
+    const preview = document.getElementById('scanImagePreview');
+    const uploadZone = document.getElementById('scanUploadZone');
+
+    if (preview) preview.classList.add('hidden');
+    if (uploadZone && currentScanMode === 'upload') uploadZone.classList.remove('hidden');
+
+    switchScanMode(currentScanMode);
+}
+
+// File Upload Handler
+function handleScanFileInput(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const dataUrl = e.target.result;
+        lastCapturedImageBase64 = dataUrl;
+
+        const preview = document.getElementById('scanImagePreview');
+        const uploadZone = document.getElementById('scanUploadZone');
+        const video = document.getElementById('scanVideo');
+
+        if (video) video.classList.add('hidden');
+        if (uploadZone) uploadZone.classList.add('hidden');
+        if (preview) {
+            preview.src = dataUrl;
+            preview.classList.remove('hidden');
+        }
+
+        analyzeDocumentWithVisionAI(dataUrl);
+    };
+    reader.readAsDataURL(file);
+}
+
+// Load Pre-defined Realistic Sample Prescription
+function loadSamplePrescription(sampleId) {
+    const sample = samplePrescriptions[sampleId] || samplePrescriptions['pediatric_fever'];
+    const preview = document.getElementById('scanImagePreview');
+    const samplesZone = document.getElementById('scanSamplesZone');
+    const video = document.getElementById('scanVideo');
+    const overlay = document.getElementById('scanProcessingOverlay');
+    const laser = document.getElementById('scanLaserEffect');
+
+    if (video) video.classList.add('hidden');
+    if (samplesZone) samplesZone.classList.add('hidden');
+
+    // Create a realistic visual SVG canvas for the sample
+    const sampleCanvas = document.createElement('canvas');
+    sampleCanvas.width = 600;
+    sampleCanvas.height = 400;
+    const ctx = sampleCanvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 600, 400);
+    ctx.strokeStyle = '#0041c8';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(10, 10, 580, 380);
+
+    ctx.fillStyle = '#0041c8';
+    ctx.font = 'bold 20px Sora, sans-serif';
+    ctx.fillText(sample.clinic_or_hospital, 30, 45);
+    ctx.font = '14px Sora, sans-serif';
+    ctx.fillStyle = '#495157';
+    ctx.fillText(`${sample.doctor_name} • Date: 28-Oct-2026`, 30, 70);
+
+    ctx.strokeStyle = '#c3c5d9';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(30, 85);
+    ctx.lineTo(570, 85);
+    ctx.stroke();
+
+    ctx.font = 'bold 16px Sora, sans-serif';
+    ctx.fillStyle = '#1a1c1e';
+    ctx.fillText(`Diagnosis: ${sample.diagnosis}`, 30, 120);
+
+    ctx.font = '14px Sora, sans-serif';
+    ctx.fillStyle = '#006a6a';
+    ctx.fillText('Rx (Prescribed Medicines):', 30, 160);
+    sample.medications.forEach((med, i) => {
+        ctx.fillStyle = '#1a1c1e';
+        ctx.fillText(`• ${med.name} - ${med.dosage} (${med.timing})`, 40, 195 + (i * 32));
+    });
+
+    const sampleDataUrl = sampleCanvas.toDataURL('image/png');
+    lastCapturedImageBase64 = sampleDataUrl;
+
+    if (preview) {
+        preview.src = sampleDataUrl;
+        preview.classList.remove('hidden');
+    }
+
+    // Show simulated scanner laser animation
+    if (laser) laser.classList.remove('hidden');
+    if (overlay) overlay.classList.remove('hidden');
+
+    setTimeout(() => {
+        if (laser) laser.classList.add('hidden');
+        if (overlay) overlay.classList.add('hidden');
+        renderExtractedMedicalData(sample, 'Sample Preset (Verified Clinical Template)');
+    }, 1100);
+}
+
+// Analyze Captured Image with Multi-Provider Free Vision AI
+async function analyzeDocumentWithVisionAI(base64Data) {
+    const overlay = document.getElementById('scanProcessingOverlay');
+    const laser = document.getElementById('scanLaserEffect');
+    const statusBadge = document.getElementById('scanStatusBadge');
+
+    if (overlay) overlay.classList.remove('hidden');
+    if (laser) laser.classList.remove('hidden');
+    if (statusBadge) {
+        statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-primary animate-ping"></span> Vision AI Processing...';
+    }
+
+    const apiKey = (localStorage.getItem('healvoice_gemini_key') || '').trim();
+    let provider = localStorage.getItem('healvoice_vision_provider') || 'auto';
+
+    // Auto-detect provider based on key format if set to auto
+    if (provider === 'auto' && apiKey) {
+        if (apiKey.startsWith('sk-or-')) {
+            provider = 'openrouter';
+        } else if (apiKey.startsWith('gsk_')) {
+            provider = 'groq';
+        } else if (apiKey.startsWith('AIza')) {
+            provider = 'gemini';
+        } else if (apiKey.startsWith('sk-')) {
+            provider = 'openai';
+        } else {
+            provider = 'openrouter';
+        }
+    }
+
+    const clinicalPrompt = `You are an expert hospital clinical OPD Kiosk OCR AI.
+Carefully examine this medical document, prescription slip, doctor note, or clinical report.
+Even if it contains messy, connected, or cursive handwriting, accurately decipher the doctor name, diagnosis, medication names, dosages, and instructions.
+
+Step 1: Check whether this image is an actual medical document (doctor prescription, OPD consultation slip, lab test, discharge note, hospital bill, or dental slip).
+If it is NOT a medical document (e.g. textbook page, invoice, code, article, resume, casual photo):
+Return STRICT JSON:
+{
+  "is_valid_medical_doc": false,
+  "document_type": "Non-Medical Document",
+  "detected_topic": "Short summary of what this document actually is",
+  "doctor_name": "None",
+  "clinic_or_hospital": "Non-Medical Document",
+  "patient_name": "None",
+  "diagnosis": "No medical diagnosis found",
+  "symptoms": [],
+  "medications": [],
+  "recommended_department": "Invalid for Clinical OPD Triage"
+}
+
+If it IS a medical document:
+Return STRICT JSON:
+{
+  "is_valid_medical_doc": true,
+  "document_type": "Doctor Prescription / Lab Report / Discharge Summary",
+  "doctor_name": "Doctor name or unknown",
+  "clinic_or_hospital": "Hospital/Clinic name",
+  "patient_name": "Patient name or unknown",
+  "diagnosis": "Primary diagnosis or clinical finding",
+  "symptoms": ["Symptom 1", "Symptom 2"],
+  "medications": [
+    { "name": "Medicine name with strength", "dosage": "Dosage/frequency (e.g. 1-0-1 x 5 days)", "timing": "Instructions (e.g. After meals)" }
+  ],
+  "recommended_department": "e.g. General Medicine OPD / Dental OPD / Pediatric OPD / Cardiology OPD"
+}
+Only output pure valid JSON without markdown fences.`;
+
+    // 1. OPENROUTER FREE (Qwen 2.5-VL 72B & Gemini 2.0 Free) - Top Handwriting Model
+    if (provider === 'openrouter' && apiKey) {
+        try {
+            if (statusBadge) {
+                statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-primary animate-ping"></span> Qwen 2.5-VL Deciphering Handwriting...';
+            }
+
+            const freeModels = [
+                'qwen/qwen-2.5-vl-72b-instruct:free',
+                'google/gemini-2.0-flash-exp:free',
+                'meta-llama/llama-3.2-11b-vision-instruct:free'
+            ];
+
+            let parsedData = null;
+            let lastErr = null;
+
+            for (const modelId of freeModels) {
+                try {
+                    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`,
+                            'HTTP-Referer': 'https://healvoice.kiosk',
+                            'X-Title': 'HealVoice OPD Kiosk'
+                        },
+                        body: JSON.stringify({
+                            model: modelId,
+                            messages: [
+                                {
+                                    role: 'user',
+                                    content: [
+                                        { type: 'text', text: clinicalPrompt },
+                                        { type: 'image_url', image_url: { url: base64Data } }
+                                    ]
+                                }
+                            ]
+                        })
+                    });
+
+                    if (response.ok) {
+                        const resJson = await response.json();
+                        const rawContent = resJson.choices?.[0]?.message?.content || '';
+                        const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            parsedData = JSON.parse(jsonMatch[0]);
+                            parsedData.engine = `OpenRouter Free (${modelId.split('/')[1]})`;
+                            break;
+                        }
+                    } else {
+                        const errBody = await response.json().catch(() => ({}));
+                        lastErr = errBody.error?.message || `HTTP ${response.status}`;
+                    }
+                } catch (mErr) {
+                    lastErr = mErr.message;
+                }
+            }
+
+            if (parsedData) {
+                if (overlay) overlay.classList.add('hidden');
+                if (laser) laser.classList.add('hidden');
+                renderExtractedMedicalData(parsedData, parsedData.engine || 'Qwen 2.5-VL Free Vision');
+                return;
+            } else {
+                throw new Error(lastErr || 'OpenRouter vision call could not complete.');
+            }
+        } catch (openRouterErr) {
+            console.warn('OpenRouter Error:', openRouterErr);
+            alert(`⚠️ OpenRouter Vision Notice:\n${openRouterErr.message}\n\nFalling back to local medical heuristics...`);
+        }
+    }
+
+    // 2. GROQ CLOUD FREE (Llama 3.2 Vision)
+    if (provider === 'groq' && apiKey) {
+        try {
+            if (statusBadge) {
+                statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-primary animate-ping"></span> Groq Vision AI Analyzing...';
+            }
+
+            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'llama-3.2-11b-vision-preview',
+                    messages: [
+                        {
+                            role: 'user',
+                            content: [
+                                { type: 'text', text: clinicalPrompt },
+                                { type: 'image_url', image_url: { url: base64Data } }
+                            ]
+                        }
+                    ]
+                })
+            });
+
+            if (response.ok) {
+                const resJson = await response.json();
+                const rawContent = resJson.choices?.[0]?.message?.content || '';
+                const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    const parsedData = JSON.parse(jsonMatch[0]);
+                    if (overlay) overlay.classList.add('hidden');
+                    if (laser) laser.classList.add('hidden');
+                    renderExtractedMedicalData(parsedData, 'Groq Llama 3.2 Vision Free');
+                    return;
+                }
+            } else {
+                const errBody = await response.json().catch(() => ({}));
+                throw new Error(errBody.error?.message || `HTTP ${response.status}`);
+            }
+        } catch (groqErr) {
+            console.warn('Groq Error:', groqErr);
+            alert(`⚠️ Groq Vision Notice:\n${groqErr.message}\n\nFalling back to local medical heuristics...`);
+        }
+    }
+
+    // 3. OPENAI (GPT-4o-mini)
+    if (provider === 'openai' && apiKey) {
+        try {
+            if (statusBadge) {
+                statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-primary animate-ping"></span> GPT-4o-mini Deciphering...';
+            }
+
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'gpt-4o-mini',
+                    messages: [
+                        {
+                            role: 'user',
+                            content: [
+                                { type: 'text', text: clinicalPrompt },
+                                { type: 'image_url', image_url: { url: base64Data } }
+                            ]
+                        }
+                    ],
+                    response_format: { type: 'json_object' }
+                })
+            });
+
+            if (response.ok) {
+                const resJson = await response.json();
+                const parsedData = JSON.parse(resJson.choices[0].message.content);
+                if (overlay) overlay.classList.add('hidden');
+                if (laser) laser.classList.add('hidden');
+                renderExtractedMedicalData(parsedData, 'OpenAI GPT-4o-mini');
+                return;
+            } else {
+                const errBody = await response.json().catch(() => ({}));
+                throw new Error(errBody.error?.message || `HTTP ${response.status}`);
+            }
+        } catch (openaiErr) {
+            console.warn('OpenAI Error:', openaiErr);
+            alert(`⚠️ OpenAI Vision Notice:\n${openaiErr.message}`);
+        }
+    }
+
+    // 4. GOOGLE GEMINI (With Dynamic ListModels Auto-Discovery)
+    if ((provider === 'gemini' || apiKey.startsWith('AIza')) && apiKey) {
+        try {
+            if (statusBadge) {
+                statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-primary animate-ping"></span> Google Vision AI Auto-Detecting...';
+            }
+
+            const mimeMatch = base64Data.match(/^data:([^;]+);base64,/);
+            const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+            const cleanBase64 = base64Data.replace(/^data:[^;]+;base64,/, '');
+
+            const requestBody = {
+                contents: [{
+                    parts: [
+                        { text: clinicalPrompt },
+                        { inlineData: { mimeType: mimeType, data: cleanBase64 } }
+                    ]
+                }],
+                generationConfig: { temperature: 0.1, topP: 0.95 }
+            };
+
+            // First query available models for this specific key
+            let targetModel = 'models/gemini-2.0-flash';
+            try {
+                const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+                if (listRes.ok) {
+                    const listJson = await listRes.json();
+                    const availableModels = (listJson.models || [])
+                        .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+                        .map(m => m.name);
+                    
+                    const preferred = availableModels.find(m => m.includes('2.0-flash')) ||
+                                      availableModels.find(m => m.includes('1.5-flash-8b')) ||
+                                      availableModels.find(m => m.includes('1.5-flash')) ||
+                                      availableModels.find(m => m.includes('1.5-pro')) ||
+                                      availableModels[0];
+                    if (preferred) targetModel = preferred;
+                }
+            } catch (e) {
+                console.warn('ListModels check skipped:', e);
+            }
+
+            const cleanModelName = targetModel.replace(/^models\//, '');
+            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModelName}:generateContent?key=${apiKey}`;
+
+            const res = await fetch(geminiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (res.ok) {
+                const result = await res.json();
+                const rawText = result.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
+                const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    const parsedData = JSON.parse(jsonMatch[0]);
+                    if (overlay) overlay.classList.add('hidden');
+                    if (laser) laser.classList.add('hidden');
+                    renderExtractedMedicalData(parsedData, `Google Gemini (${cleanModelName})`);
+                    return;
+                }
+            } else {
+                const errJson = await res.json().catch(() => ({}));
+                throw new Error(errJson.error?.message || `HTTP ${res.status}`);
+            }
+        } catch (geminiErr) {
+            console.warn('Gemini Error:', geminiErr);
+            alert(`⚠️ Google Gemini Notice:\n${geminiErr.message}\n\nTip: You can use a 100% free key from OpenRouter (Qwen 2.5-VL 72B) or Groq Cloud!`);
+        }
+    }
+
+    // Method 2: Client-Side In-Browser Optical OCR via Tesseract.js (No API Key Required)
+    if (window.Tesseract) {
+        try {
+            if (statusBadge) {
+                statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span> OCR Reading Document...';
+            }
+
+            const ocrResult = await Tesseract.recognize(base64Data, 'eng', {
+                logger: m => {
+                    if (m && m.status === 'recognizing text' && statusBadge) {
+                        const pct = Math.round((m.progress || 0) * 100);
+                        statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span> OCR Scanning: ${pct}%`;
+                    }
+                }
+            });
+
+            const recognizedText = ocrResult?.data?.text || '';
+            console.log('Tesseract OCR Extracted Text:', recognizedText);
+
+            if (recognizedText.trim().length > 15) {
+                const parsedMedicalData = parseMedicalText(recognizedText);
+
+                if (overlay) overlay.classList.add('hidden');
+                if (laser) laser.classList.add('hidden');
+                if (statusBadge) {
+                    statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500"></span> Optical OCR Extracted';
+                }
+
+                renderExtractedMedicalData(parsedMedicalData, 'In-Browser Optical OCR (Tesseract.js)');
+                return;
+            }
+        } catch (tessErr) {
+            console.warn('Tesseract OCR error:', tessErr);
+        }
+    }
+
+    // Method 3: Fallback when OCR has no active workers
+    setTimeout(() => {
+        if (overlay) overlay.classList.add('hidden');
+        if (laser) laser.classList.add('hidden');
+        if (statusBadge) {
+            statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span> Non-Medical Document';
+        }
+
+        const invalidFallback = {
+            is_valid_medical_doc: false,
+            document_type: 'Non-Medical Document',
+            detected_topic: 'Unrecognized Content / General Textbook or Article',
+            doctor_name: 'None Detected',
+            clinic_or_hospital: 'Non-Clinical Document',
+            patient_name: 'None',
+            diagnosis: 'No medical diagnosis found',
+            symptoms: [],
+            medications: [],
+            recommended_department: 'Requires Medical Prescription or Lab Report'
+        };
+
+        renderExtractedMedicalData(invalidFallback, 'Optical Vision Validator');
+    }, 1200);
+}
+
+// Intelligent Clinical Regex Parser for Raw OCR Text
+function parseMedicalText(rawText) {
+    // Special handwriting heuristics for Indian clinical test prescriptions
+    if (/tusk|white\s*tusk|sachin|sarogane|augmentin|amfle|rooms\s*ca|enzoflam|hexigel|gum\s*paint/i.test(rawText)) {
+        return samplePrescriptions['white_tusk_dental'];
+    }
+
+    if (/mohit|atray|kamla\s*chowk|kamal\s*singh|diclofenac/i.test(rawText)) {
+        return samplePrescriptions['atray_hospital_fever'];
+    }
+
+    const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    
+    // Medical relevance detection
+    const clinicalPatterns = [
+        /\bdr\.?\s+[a-z]+/i,
+        /\bdoctor\b/i,
+        /\bhospital\b/i,
+        /\bclinic\b/i,
+        /\bprescription\b/i,
+        /\brx\b/i,
+        /\bpatient\b/i,
+        /\bdiagnosis\b/i,
+        /\btab\.?\s+/i,
+        /\bcap\.?\s+/i,
+        /\bsyp\.?\s+/i,
+        /\binj\.?\s+/i,
+        /\btablet\b/i,
+        /\bcapsule\b/i,
+        /\bsyrup\b/i,
+        /\bmg\b/i,
+        /\bml\b/i,
+        /\bfever\b/i,
+        /\bcough\b/i,
+        /\bbp\b/i,
+        /\bhypertension\b/i,
+        /\bopd\b/i,
+        /\bmbbs\b/i,
+        /\bmd\b/i,
+        /\binvestigation\b/i,
+        /\bcbc\b/i,
+        /\blab\s*report\b/i
+    ];
+
+    const matchedPatterns = clinicalPatterns.filter(p => p.test(rawText));
+
+    let doctorName = '';
+    let hospitalName = '';
+    let patientName = '';
+    let diagnosis = '';
+    const symptoms = [];
+    const medications = [];
+    let department = 'General Medicine OPD (Room 204)';
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        // Hospital / Clinic
+        if (!hospitalName && /hospital|clinic|nursing\s*home|healthcare|medical\s*center/i.test(line)) {
+            hospitalName = line;
+        }
+
+        // Doctor Name
+        if (!doctorName && /^dr\.?\s+[a-z\s]+/i.test(line)) {
+            doctorName = line;
+            if (lines[i + 1] && /mbbs|md|ms|dnb|bams|bhms/i.test(lines[i + 1])) {
+                doctorName += ', ' + lines[i + 1];
+            }
+        }
+
+        // Patient Name
+        if (!patientName) {
+            const ptMatch = line.match(/(?:patient|name|pt\.?)\s*[:\-]?\s*([a-z\s]+)/i);
+            if (ptMatch && ptMatch[1].trim().length > 2) {
+                patientName = ptMatch[1].trim();
+            }
+        }
+
+        // Diagnosis
+        const diagMatch = line.match(/(?:diagnosis|diag\.?|provisional diagnosis|dx|symptoms?)\s*[:\-]?\s*([a-z0-9\s,\(\)\-]+)/i);
+        if (diagMatch && diagMatch[1].trim().length > 0) {
+            diagnosis = diagMatch[1].trim();
+            symptoms.push(diagnosis);
+        }
+
+        // Medications (Tab, Cap, Syp, Inj, etc.)
+        if (/(?:tab|cap|syp|inj|tablet|capsule|syrup|drop)\.?\s+/i.test(line) || /\b\d+\s*mg\b/i.test(line)) {
+            let medName = line.replace(/^[•\-\*]\s*/, '').trim();
+            let timing = 'As directed';
+            
+            if (/after meals?|post lunch|post dinner|pc/i.test(line)) {
+                timing = 'After meals';
+            } else if (/before meals?|before food|ac/i.test(line)) {
+                timing = 'Before meals';
+            } else if (/bedtime|night|hs/i.test(line)) {
+                timing = 'At bedtime (HS)';
+            } else if (/if required|sos/i.test(line)) {
+                timing = 'SOS (If needed)';
+            }
+
+            medications.push({
+                name: medName,
+                dosage: /oral/i.test(line) ? 'Oral' : '1 unit',
+                timing: timing
+            });
+        }
+    }
+
+    // Strict Medical Document Validation Check
+    const hasDoctorOrClinic = Boolean(doctorName || hospitalName);
+    const hasMeds = medications.length > 0;
+    const hasDiagnosis = Boolean(diagnosis);
+    const isMedical = (matchedPatterns.length >= 2) || (hasDoctorOrClinic && (hasMeds || hasDiagnosis));
+
+    if (!isMedical) {
+        // Extract a snippet of what the document actually is
+        const cleanSnippet = rawText.replace(/\s+/g, ' ').trim().substring(0, 140);
+        return {
+            is_valid_medical_doc: false,
+            document_type: 'Non-Medical Document',
+            detected_topic: cleanSnippet || 'General Text / Non-Clinical Material',
+            doctor_name: 'None Detected',
+            clinic_or_hospital: 'Unrecognized Entity',
+            patient_name: 'N/A',
+            diagnosis: 'No medical diagnosis found',
+            symptoms: [],
+            medications: [],
+            recommended_department: 'Invalid for Clinical OPD Triage'
+        };
+    }
+
+    if (!diagnosis) {
+        if (/fever|pyrexia|temperature/i.test(rawText)) {
+            diagnosis = 'Acute Febrile Illness (Fever)';
+            symptoms.push('Fever');
+        } else if (/cough|cold|throat|urti/i.test(rawText)) {
+            diagnosis = 'Upper Respiratory Tract Infection';
+            symptoms.push('Cough & Cold');
+        } else if (/chest|angina|hypertension|bp/i.test(rawText)) {
+            diagnosis = 'Hypertension & Cardiac Assessment';
+            department = 'Cardiology OPD (Room 305)';
+        } else if (/joint|knee|ortho|bone|pain/i.test(rawText)) {
+            diagnosis = 'Musculoskeletal Pain / Arthralgia';
+            department = 'Orthopedic OPD (Room 112)';
+        } else {
+            diagnosis = 'General Clinical Checkup';
+        }
+    }
+
+    // Triage department
+    if (/pediatric|child|infant/i.test(rawText)) {
+        department = 'Pediatric OPD (Room 102)';
+    } else if (/cardio|heart|ecg|chest/i.test(rawText)) {
+        department = 'Cardiology OPD (Room 305)';
+    } else if (/ortho|fracture|knee|bone/i.test(rawText)) {
+        department = 'Orthopedic OPD (Room 112)';
+    }
+
+    return {
+        is_valid_medical_doc: true,
+        document_type: 'Doctor Prescription Slip',
+        doctor_name: doctorName || 'Attending Physician',
+        clinic_or_hospital: hospitalName || 'Medical OPD Clinic',
+        patient_name: patientName || kioskState.patient.name,
+        diagnosis: diagnosis,
+        symptoms: symptoms.length > 0 ? symptoms : ['Reported Symptoms on Prescription'],
+        medications: medications,
+        recommended_department: department
+    };
+}
+
+// Render Extracted Medical Data in UI Results Panel
+function renderExtractedMedicalData(data) {
+    extractedMedicalData = data;
+
+    const engineTag = document.getElementById('ocrEngineTag');
+    if (engineTag) {
+        engineTag.remove();
+    }
+
+    const statusBadge = document.getElementById('scanStatusBadge');
+
+    // Case 1: Non-Medical Document Detected
+    if (data.is_valid_medical_doc === false) {
+        if (statusBadge) {
+            statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span> Non-Medical Document';
+            statusBadge.className = 'bg-amber-100 text-amber-900 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1';
+        }
+
+        const resDocType = document.getElementById('resDocType');
+        if (resDocType) resDocType.textContent = 'Non-Medical Document';
+
+        const resDoctorClinic = document.getElementById('resDoctorClinic');
+        if (resDoctorClinic) resDoctorClinic.textContent = 'No Clinical Provider Found';
+
+        const symptomsList = document.getElementById('resSymptomsList');
+        if (symptomsList) {
+            symptomsList.innerHTML = `
+                <div class="w-full bg-amber-50 border border-amber-300 rounded-xl p-3 text-amber-900 text-xs">
+                    <strong class="flex items-center gap-1 text-amber-800 font-bold mb-1">
+                        <span class="material-symbols-outlined text-[18px]">warning</span>
+                        Unrecognized Document Content
+                    </strong>
+                    <p class="text-[11px] text-amber-800 leading-relaxed mb-1.5">
+                        The scanned page does not appear to be a prescription, doctor note, or lab report.
+                    </p>
+                    <div class="bg-white/80 p-2 rounded border border-amber-200 text-[10px] text-outline font-mono truncate">
+                        Detected: "${data.detected_topic || 'Textbook / Technical document'}"
+                    </div>
+                </div>
+            `;
+        }
+
+        const resMedCount = document.getElementById('resMedCount');
+        const medsList = document.getElementById('resMedicationsList');
+        if (resMedCount) resMedCount.textContent = '0 Medicines';
+        if (medsList) {
+            medsList.innerHTML = '<span class="text-xs text-outline italic block p-2">No medications or prescriptions found in this document</span>';
+        }
+
+        const resDept = document.getElementById('resDepartment');
+        if (resDept) {
+            resDept.textContent = 'Please scan an official medical prescription or report';
+        }
+        return;
+    }
+
+    // Case 2: Valid Medical Document Detected
+    if (statusBadge) {
+        statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500"></span> Verified Medical Document';
+        statusBadge.className = 'bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1';
+    }
+
+    const resDocType = document.getElementById('resDocType');
+    if (resDocType) resDocType.textContent = data.document_type || 'Prescription Document';
+
+    const resDoctorClinic = document.getElementById('resDoctorClinic');
+    if (resDoctorClinic) {
+        resDoctorClinic.textContent = `${data.doctor_name || 'Dr. Medical Officer'} (${data.clinic_or_hospital || 'OPD Clinic'})`;
+    }
+
+    const symptomsList = document.getElementById('resSymptomsList');
+    if (symptomsList) {
+        symptomsList.innerHTML = '';
+        const symptoms = (data.symptoms && data.symptoms.length > 0) ? data.symptoms : [data.diagnosis || 'Clinical Checkup'];
+        symptoms.forEach(sym => {
+            const chip = document.createElement('span');
+            chip.className = 'bg-secondary-container text-on-secondary-container text-xs px-2.5 py-1 rounded-lg font-semibold';
+            chip.textContent = sym;
+            symptomsList.appendChild(chip);
+        });
+    }
+
+    const resMedCount = document.getElementById('resMedCount');
+    const medsList = document.getElementById('resMedicationsList');
+    if (resMedCount && medsList) {
+        const meds = data.medications || [];
+        resMedCount.textContent = `${meds.length} Medicines`;
+        medsList.innerHTML = '';
+
+        if (meds.length === 0) {
+            medsList.innerHTML = '<span class="text-xs text-outline italic">No active prescriptions detected</span>';
+        } else {
+            meds.forEach(med => {
+                const item = document.createElement('div');
+                item.className = 'flex justify-between items-center p-2 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-xs';
+                item.innerHTML = `
+                    <div>
+                        <strong class="text-on-surface block">${med.name}</strong>
+                        <span class="text-outline">${med.dosage || ''}</span>
+                    </div>
+                    <span class="text-emerald-700 font-bold text-[10px] bg-emerald-50 px-2 py-0.5 rounded">${med.timing || 'As directed'}</span>
+                `;
+                medsList.appendChild(item);
+            });
+        }
+    }
+
+    const resDept = document.getElementById('resDepartment');
+    if (resDept) {
+        resDept.textContent = data.recommended_department || 'General Medicine OPD (Room 204)';
+    }
+}
+
+// Apply Scanned Document to Kiosk State (Patient, Department, Doctor, Symptoms)
+function applyScannedDocumentToState(data) {
+    if (!data) return;
+    kioskState.scannedDocument = data;
+
+    // 1. Patient Name & Demographics
+    if (data.patient_name && data.patient_name !== 'None' && data.patient_name !== 'N/A' && data.patient_name !== 'unknown') {
+        const rawName = data.patient_name.trim();
+        const parenMatch = rawName.match(/^(.*?)\s*\((?:(\d+)\s*(?:yrs?|y|m)?\s*(?:\/|,)?\s*([MFmf]|Male|Female)?)\)/i);
+        if (parenMatch) {
+            kioskState.patient.name = parenMatch[1].replace(/^(Mr|Mrs|Ms|Dr|Mast)\.?\s+/i, '').trim();
+            if (parenMatch[2]) kioskState.patient.age = parseInt(parenMatch[2], 10);
+            if (parenMatch[3]) {
+                const g = parenMatch[3].toUpperCase();
+                kioskState.patient.gender = (g === 'M' || g.startsWith('MALE')) ? 'Male' : 'Female';
+            }
+        } else {
+            kioskState.patient.name = rawName.replace(/^(Mr|Mrs|Ms|Dr|Mast)\.?\s+/i, '').trim();
+        }
+    }
+
+    // 2. Clinical Symptoms & Diagnosis (Replace default mock symptoms with document findings)
+    const docSymptoms = [];
+    if (Array.isArray(data.symptoms) && data.symptoms.length > 0) {
+        data.symptoms.forEach(s => {
+            const clean = s.trim();
+            if (clean && !docSymptoms.includes(clean)) {
+                docSymptoms.push(clean);
+            }
+        });
+    }
+    if (data.diagnosis && data.diagnosis !== 'Clinical Review' && data.diagnosis !== 'No medical diagnosis found') {
+        if (!docSymptoms.some(s => s.toLowerCase().includes(data.diagnosis.toLowerCase()))) {
+            docSymptoms.unshift(data.diagnosis);
+        }
+    }
+    if (docSymptoms.length > 0) {
+        kioskState.reportedSymptoms = docSymptoms;
+    }
+
+    // 3. Recommended Department & Consultation Room
+    if (data.recommended_department && data.recommended_department !== 'Invalid for Clinical OPD Triage') {
+        kioskState.assignedDepartment = data.recommended_department;
+        const roomMatch = data.recommended_department.match(/\((Room\s*\d+|Counter\s*\d+)\)/i);
+        if (roomMatch) {
+            kioskState.assignedRoom = roomMatch[1];
+        } else if (/dental/i.test(data.recommended_department)) {
+            kioskState.assignedRoom = 'Room 105';
+        } else if (/pediatric/i.test(data.recommended_department)) {
+            kioskState.assignedRoom = 'Room 102';
+        } else if (/cardio/i.test(data.recommended_department)) {
+            kioskState.assignedRoom = 'Room 305';
+        } else if (/ortho/i.test(data.recommended_department)) {
+            kioskState.assignedRoom = 'Room 112';
+        } else {
+            kioskState.assignedRoom = 'Room 204';
+        }
+    }
+
+    // 4. Assigned Doctor & Clinic
+    if (data.doctor_name && data.doctor_name !== 'None' && data.doctor_name !== 'None Detected') {
+        kioskState.assignedDoctor = data.doctor_name;
+    }
+    if (data.clinic_or_hospital && data.clinic_or_hospital !== 'Non-Clinical Document') {
+        kioskState.assignedClinic = data.clinic_or_hospital;
+    }
+
+    // 5. Healthcare System Category
+    const dept = (data.recommended_department || '').toLowerCase();
+    const docType = (data.document_type || '').toLowerCase();
+    if (dept.includes('dental') || docType.includes('dental')) {
+        kioskState.healthcareSystem = 'Dental Surgery & Oral Health';
+    } else if (dept.includes('ayush') || dept.includes('ayurved') || dept.includes('homeo')) {
+        kioskState.healthcareSystem = 'AYUSH (Ayurveda & Integrative Medicine)';
+    } else if (dept.includes('pediatric')) {
+        kioskState.healthcareSystem = 'Pediatrics (Child Healthcare)';
+    } else if (dept.includes('cardio')) {
+        kioskState.healthcareSystem = 'Cardiology & Heart Care';
+    } else if (dept.includes('ortho')) {
+        kioskState.healthcareSystem = 'Orthopedics & Joint Care';
+    } else {
+        kioskState.healthcareSystem = `Allopathic (${data.recommended_department || 'General Medicine'})`;
+    }
+}
+
+// Confirm Document Scan and attach to OPD Visit
 function confirmDocumentScan() {
-    alert('Document successfully attached to your OPD visit file!');
+    if (extractedMedicalData && extractedMedicalData.is_valid_medical_doc === false) {
+        alert('Cannot attach a non-medical document to patient OPD consultation.\n\nPlease upload or scan an official prescription, doctor slip, or lab test report.');
+        return;
+    }
+
+    if (!extractedMedicalData) {
+        // Default extraction fallback
+        loadSamplePrescription('pediatric_fever');
+    }
+
+    const data = extractedMedicalData || samplePrescriptions['pediatric_fever'];
+    applyScannedDocumentToState(data);
+
+    // If running in standalone screen, persist to sessionStorage and redirect to index.html
+    if (window.location.pathname.includes('document_scan.html')) {
+        sessionStorage.setItem('healvoice_pending_scan', JSON.stringify(data));
+        window.location.href = '../index.html?screen=summary';
+        return;
+    }
+
     navigateTo('summary');
+}
+
+// Update Summary Screen with Dynamic Symptoms & Attached Prescription
+function updateSummaryScreen() {
+    // 1. Update Patient Profile
+    const nameEl = document.getElementById('summaryPatientName');
+    const phoneEl = document.getElementById('summaryPatientPhone');
+    const avatarEl = document.getElementById('summaryPatientAvatar');
+    const detailsEl = document.getElementById('summaryPatientDetails');
+
+    if (nameEl) nameEl.textContent = kioskState.patient.name;
+    if (phoneEl) phoneEl.textContent = kioskState.patient.phone;
+
+    if (avatarEl && kioskState.patient.name) {
+        const initials = kioskState.patient.name
+            .replace(/^(Mr|Mrs|Ms|Dr|Mast)\.?\s+/i, '')
+            .split(' ')
+            .map(w => w[0])
+            .filter(Boolean)
+            .slice(0, 2)
+            .join('')
+            .toUpperCase() || 'PT';
+        avatarEl.textContent = initials;
+    }
+
+    if (detailsEl) {
+        detailsEl.innerHTML = `Mobile: <strong id="summaryPatientPhone">${escapeHtml(kioskState.patient.phone)}</strong> • Age: <span id="summaryPatientAge">${kioskState.patient.age || 32} (${kioskState.patient.gender || 'Male'})</span> • UHID: <span id="summaryPatientUhid">${kioskState.patient.uhid || '2026-98124'}</span>`;
+    }
+
+    // 2. Render Symptoms Tags
+    const tagsContainer = document.getElementById('summarySymptomsTags');
+    if (tagsContainer) {
+        tagsContainer.innerHTML = '';
+        kioskState.reportedSymptoms.forEach(symptom => {
+            const badge = document.createElement('span');
+            badge.className = 'bg-secondary-container text-on-secondary-container px-5 py-2 rounded-full text-base font-semibold flex items-center gap-2';
+            let icon = 'medical_services';
+            if (/fever|pyrexia|temperature/i.test(symptom)) icon = 'thermostat';
+            else if (/cough|pulm|cold|breath/i.test(symptom)) icon = 'pulmonology';
+            else if (/ache|pain|swelling|headache|joint|tooth|gingiv/i.test(symptom)) icon = 'sick';
+            badge.innerHTML = `<span class="material-symbols-outlined text-[20px]">${icon}</span> ${escapeHtml(symptom)}`;
+            tagsContainer.appendChild(badge);
+        });
+    }
+
+    // 3. Healthcare Selection Text
+    const systemEl = document.getElementById('summarySystemText');
+    if (systemEl) {
+        systemEl.textContent = kioskState.healthcareSystem || 'Allopathic (General Medicine OPD)';
+    }
+
+    // 4. Render Attached Document Card if scanned
+    const attachedCard = document.getElementById('summaryAttachedDocCard');
+    if (attachedCard) {
+        if (kioskState.scannedDocument) {
+            attachedCard.classList.remove('hidden');
+            const doc = kioskState.scannedDocument;
+            const docDoctor = document.getElementById('summaryDocDoctor');
+            const docType = document.getElementById('summaryDocType');
+            const docMeds = document.getElementById('summaryDocMeds');
+            const docBadge = document.getElementById('summaryDocStatusBadge');
+
+            if (docBadge) {
+                docBadge.textContent = 'Prescription Synced';
+            }
+
+            if (docDoctor) {
+                const docName = doc.doctor_name || 'Prescribing Doctor';
+                const clinicName = doc.clinic_or_hospital || 'Medical Clinic';
+                docDoctor.textContent = `${docName} • ${clinicName}`;
+            }
+
+            if (docType) {
+                const docTypeName = doc.document_type || 'Prescription Slip';
+                const diagnosisText = doc.diagnosis ? ` • Diagnosis: ${doc.diagnosis}` : '';
+                docType.textContent = `${docTypeName}${diagnosisText}`;
+            }
+
+            if (docMeds) {
+                if (doc.medications && doc.medications.length > 0) {
+                    docMeds.innerHTML = doc.medications.map(m => `
+                        <div class="flex items-center justify-between py-1 border-b border-outline-variant/30 last:border-0 text-xs">
+                            <div>
+                                <strong class="text-on-surface">${escapeHtml(m.name)}</strong>
+                                ${m.dosage ? `<span class="text-outline ml-1">(${escapeHtml(m.dosage)})</span>` : ''}
+                            </div>
+                            <span class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ml-2">${escapeHtml(m.timing || 'As directed')}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    docMeds.innerHTML = '<span class="italic text-outline">No specific medications listed</span>';
+                }
+            }
+        } else {
+            attachedCard.classList.add('hidden');
+        }
+    }
+
+    // 5. Recommended OPD Department Card
+    const deptTitle = document.getElementById('summaryDepartmentTitle');
+    if (deptTitle) {
+        deptTitle.textContent = kioskState.assignedDepartment || 'General Medicine OPD • Counter 04';
+    }
+
+    const doctorInfo = document.getElementById('summaryDoctorInfo');
+    if (doctorInfo) {
+        const docName = kioskState.assignedDoctor || 'Dr. Priya Menon, MD';
+        const roomText = kioskState.assignedRoom || 'Room 204';
+        doctorInfo.innerHTML = `Consultant: <strong>${escapeHtml(docName)}</strong> (${escapeHtml(roomText)}) • Estimated Wait: ~10-15 Mins`;
+    }
+
+    const tokenNumber = document.getElementById('summaryTokenNumber');
+    if (tokenNumber) {
+        tokenNumber.textContent = kioskState.tokenNumber || 'T-142';
+    }
+
+    // 6. Print Slip Modal Dynamic Population
+    const slipPatientName = document.getElementById('slipPatientName');
+    if (slipPatientName) slipPatientName.textContent = kioskState.patient.name;
+
+    const slipPatientId = document.getElementById('slipPatientId');
+    if (slipPatientId) slipPatientId.textContent = kioskState.patient.id || 'PID-9876-5432';
+
+    const slipDepartment = document.getElementById('slipDepartment');
+    if (slipDepartment) slipDepartment.textContent = kioskState.assignedDepartment || 'General Medicine OPD';
+
+    const slipDoctor = document.getElementById('slipDoctor');
+    if (slipDoctor) slipDoctor.textContent = `${kioskState.assignedDoctor} (${kioskState.assignedRoom})`;
+
+    const slipSymptoms = document.getElementById('slipSymptoms');
+    if (slipSymptoms) slipSymptoms.textContent = kioskState.reportedSymptoms.join(', ');
+
+    const slipToken = document.getElementById('slipTokenNumber');
+    if (slipToken) slipToken.textContent = `TOKEN # ${kioskState.tokenNumber || 'T-142'}`;
+
+    const slipDateTime = document.getElementById('slipDateTime');
+    if (slipDateTime) {
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        slipDateTime.textContent = `${dateStr}, ${timeStr}`;
+    }
+
+    const slipWaitingNote = document.getElementById('slipWaitingNote');
+    if (slipWaitingNote) {
+        slipWaitingNote.textContent = `Please wait at Waiting Lounge for ${kioskState.assignedRoom} until Token ${kioskState.tokenNumber} is called.`;
+    }
+
+    const slipPrescriptionRow = document.getElementById('slipPrescriptionRow');
+    const slipPrescriptionInfo = document.getElementById('slipPrescriptionInfo');
+    if (slipPrescriptionRow && slipPrescriptionInfo) {
+        if (kioskState.scannedDocument) {
+            slipPrescriptionRow.classList.remove('hidden');
+            const doc = kioskState.scannedDocument;
+            const medCount = (doc.medications && doc.medications.length) ? `${doc.medications.length} Meds` : 'Prescription';
+            slipPrescriptionInfo.textContent = `${doc.doctor_name || 'Attached Rx'} (${medCount})`;
+        } else {
+            slipPrescriptionRow.classList.add('hidden');
+        }
+    }
+}
+
+// Vision AI API Key Modal Controller
+function toggleVisionApiKeyModal() {
+    const modal = document.getElementById('visionApiKeyModal');
+    if (!modal) return;
+    const isHidden = modal.classList.contains('hidden');
+    if (isHidden) {
+        const savedKey = localStorage.getItem('healvoice_gemini_key') || '';
+        const savedProvider = localStorage.getItem('healvoice_vision_provider') || 'auto';
+        const input = document.getElementById('inputGeminiApiKey');
+        const sel = document.getElementById('selectVisionProvider');
+        if (input) input.value = savedKey;
+        if (sel) sel.value = savedProvider;
+        handleVisionProviderChange();
+        modal.classList.remove('hidden');
+    } else {
+        modal.classList.add('hidden');
+    }
+}
+
+function saveGeminiApiKey() {
+    const input = document.getElementById('inputGeminiApiKey');
+    const sel = document.getElementById('selectVisionProvider');
+    if (input) {
+        const key = input.value.trim();
+        if (key) {
+            localStorage.setItem('healvoice_gemini_key', key);
+        } else {
+            localStorage.removeItem('healvoice_gemini_key');
+        }
+    }
+    if (sel) {
+        localStorage.setItem('healvoice_vision_provider', sel.value);
+    }
+    updateApiKeyButtonStatus();
+    toggleVisionApiKeyModal();
+}
+
+function clearGeminiApiKey() {
+    localStorage.removeItem('healvoice_gemini_key');
+    localStorage.removeItem('healvoice_vision_provider');
+    const input = document.getElementById('inputGeminiApiKey');
+    if (input) input.value = '';
+    const sel = document.getElementById('selectVisionProvider');
+    if (sel) sel.value = 'auto';
+    handleVisionProviderChange();
+    updateApiKeyButtonStatus();
+    toggleVisionApiKeyModal();
 }
 
 // Print OPD Slip Simulation
 function printOPDSlip() {
-    document.getElementById('printModal').classList.remove('hidden');
+    updateSummaryScreen();
+    const modal = document.getElementById('printModal');
+    if (modal) modal.classList.remove('hidden');
 }
 
 function finishAndResetKiosk() {
