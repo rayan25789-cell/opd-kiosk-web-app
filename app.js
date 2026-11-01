@@ -1338,12 +1338,12 @@ function parseMedicalText(rawText) {
 }
 
 // Render Extracted Medical Data in UI Results Panel
-function renderExtractedMedicalData(data, engineLabel = 'Gemini Vision AI') {
+function renderExtractedMedicalData(data) {
     extractedMedicalData = data;
 
     const engineTag = document.getElementById('ocrEngineTag');
     if (engineTag) {
-        engineTag.innerHTML = `<span class="material-symbols-outlined text-[16px]">neurology</span> ${engineLabel}`;
+        engineTag.remove();
     }
 
     const statusBadge = document.getElementById('scanStatusBadge');
